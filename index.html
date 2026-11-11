@@ -89,13 +89,13 @@ a{color:inherit;text-decoration:none}
 
 .sub,.hint{
   margin:0;max-width:100%;
-  font-size:var(--fs-sub);font-weight:500;line-height:1.3;
+  font-size:var(--fs-sub);font-weight:600;line-height:1.3;
   color:var(--ink);
   /* tiny halo only; set CFG.halo = 0 in the script to remove it entirely */
   text-shadow:0 0 5px var(--halo);
   transition:color .6s,opacity .8s;
 }
-.sub{margin-top:clamp(.4rem, 1vh, .9rem)}
+.sub{margin-top:clamp(.4rem, 1vh, .9rem);font-weight:400}   /* the fixed words are regular weight... */
 .hint{margin-top:clamp(1.6rem, 4.6vh, 3rem)}
 .drawn .hint{opacity:0}
 
@@ -105,6 +105,7 @@ a{color:inherit;text-decoration:none}
 
 /* ---- rolling words ---- */
 .adj{
+  font-weight:600;       /* ...only the rolling words stay bold */
   --px:8em;--py:.35em;   /* side padding = slack so a word that is wider than the box mid-transition stays centred */
   display:inline-block;position:relative;vertical-align:baseline;
   white-space:nowrap;box-sizing:content-box;
@@ -132,7 +133,7 @@ a{color:inherit;text-decoration:none}
 }
 .work-title{
   margin:0 0 .85em;
-  font-size:var(--fs-label);font-weight:400;line-height:1.2;
+  font-size:var(--fs-label);font-weight:500;line-height:1.2;
   color:var(--ink);
   text-shadow:0 0 5px var(--halo);
   transition:color .6s;
@@ -261,20 +262,25 @@ a{color:inherit;text-decoration:none}
    ========================================================================== */
 const CFG={
   tz:'America/Chicago',     // time zone driving the sky
-  quality:.8,               // canvas resolution scale (lower = softer + faster)
+  sceneQuality:.8,          // resolution of the blurred background (it's blurry anyway, so low is fine)
+  maxQuality:2,             // resolution of the title + drawing layers (2 = full retina sharpness)
+  maxPixels:4.5e6,          // safety cap on those layers for very large screens
   smoothMs:110,             // scroll smoothing (ms). Lower = snappier, higher = floatier
   smoothMsTouch:45,         // same, for touch screens (they already have momentum)
   parallax:1,               // background scroll speed vs the page: 1 = moves with the page, <1 = slower (more depth)
-  frost:.34,                // glass frost level: 0 = clear, ~.6 = very milky
+  frost:.26,                // glass frost level: 0 = clear, ~.6 = very milky
+  writeMs:3800,             // how long each line of the title takes to write (ms)
+  titleTint:.6,             // how strongly the title is tinted darker (day) / lighter (night) than the glass behind it
   halo:.22,                 // text halo strength (0 = none). Contrast does most of the work
-  inkDark:'#10244a',        // text colour on light backgrounds
+  inkDark:'#0a1f4a',        // text colour on light backgrounds
   inkLight:'#eef3ff',       // text colour on dark backgrounds
   titleFit:.66,             // title width as a share of the screen (wide screens)
   titleFitNarrow:.84,       // same, when the title wraps to two lines
   narrowAt:720,             // px: below this the title wraps to two lines
   anchorOffset:130          // px of space above a section when the menu scrolls to it
 };
-const Q=CFG.quality;
+const QS=CFG.sceneQuality;   // background scale
+let Q=1;                     // title / ink / mask scale (set in resize() from the screen's pixel density)
 const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COARSE=matchMedia('(pointer: coarse)').matches;
 
@@ -298,9 +304,9 @@ const hash=(a,b,c)=>{let h=a*374761393+b*668265263+c*2147483647|0;h=(h^h>>>13)*1
    2. TIME OF DAY
    ========================================================================== */
 const P={
-  night:{c:['#050816','#0b1634','#16254a'].map(hex),l:1,k:.05},
+  night:{c:['#02040d','#060d29','#0b1a3d'].map(hex),l:1,k:.05},
   dawn: {c:['#3d4c8a','#d68aa2','#f7c690'].map(hex),l:.35,k:.6},
-  day:  {c:['#2a6fdb','#5ea3ea','#8fc9b4'].map(hex),l:0,k:1},
+  day:  {c:['#2060d0','#4592e6','#78c0b6'].map(hex),l:0,k:1},
   dusk: {c:['#363c7d','#b8709a','#f0a070'].map(hex),l:.55,k:.7}
 };
 // sunrise 6:00, sunset 19:00
@@ -371,7 +377,7 @@ const S=mk(),sx=S.getContext('2d'),
   DS=mk(),dsx=DS.getContext('2d');
 
 // shared state
-let cssW=0,cssH=0,W=0,H=0;       // viewport size in css px / canvas px
+let cssW=0,cssH=0,W=0,H=0,WS=0,HS=0;   // viewport in css px · in title/ink canvas px (W,H) · in background canvas px (WS,HS)
 let SC=0,PHcss=0;                // height of the tall scene (canvas px) and of the page (css px)
 let live=true,prevH=12,dirty=1,lastInk=0;
 let vy=0,maxY=1,sy=0,lastAdapt=0;   // scroll: smoothed offset (css px), scroll range, same offset in canvas px
@@ -387,7 +393,7 @@ function glow(c,x,y,r,col,a){
 }
 
 function drawScene(h,s){
-  const c=sx,w=S.width,T=S.height,vh=H/3;      // T = whole scene height, vh = one screen, both in scene pixels
+  const c=sx,w=S.width,T=S.height,vh=HS/3;      // T = whole scene height, vh = one screen, both in scene pixels
 
   // sky: the original one-screen gradient; below the horizon it just holds its colour
   const g=c.createLinearGradient(0,0,0,vh);
@@ -457,10 +463,11 @@ const lin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)};
 const lum=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
 const ratio=(a,b)=>(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
 const INK_D=hex(CFG.inkDark),INK_L=hex(CFG.inkLight),LD=lum(INK_D),LL=lum(INK_L);
-const VEIL=[236,243,255];
+const VEIL_DAY=[214,230,252],VEIL_NIGHT=[12,24,58],TINT_D=[10,32,84],TINT_L=[238,243,255];
+let nightL=0,veilCol=VEIL_DAY;                       // colour of the frost layer (milky blue by day, deep navy at night)
 let FD=null,FW=0,FH=0,veilA=.3;
 // how far down the tall background we're looking right now (canvas px)
-const sceneOff=()=>cl(sy*CFG.parallax,0,Math.max(0,SC-H));
+const sceneOff=()=>cl(vy*QS*CFG.parallax,0,Math.max(0,SC-HS));
 
 // dark text or light text? picks the better contrast; `prev` adds a little hysteresis so it never flickers
 function pickDark(c,prev){
@@ -471,10 +478,10 @@ function pickDark(c,prev){
 function sampleRect(r){
   const so=sceneOff(),kx_=FW/cssW,ky_=FH/SC;
   const x0=cl(Math.floor(r.left*kx_),0,FW-1),x1=cl(Math.ceil(r.right*kx_),x0+1,FW);
-  const y0=cl(Math.floor((r.top*Q+so)*ky_),0,FH-1),y1=cl(Math.ceil((r.bottom*Q+so)*ky_),y0+1,FH);
+  const y0=cl(Math.floor((r.top*QS+so)*ky_),0,FH-1),y1=cl(Math.ceil((r.bottom*QS+so)*ky_),y0+1,FH);
   let R=0,G=0,B=0,n=0;
   for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++){const i=(yy*FW+xx)*4;R+=FD[i];G+=FD[i+1];B+=FD[i+2];n++}
-  return mix([R/n,G/n,B/n],VEIL,veilA);
+  return mix([R/n,G/n,B/n],veilCol,veilA);
 }
 // re-colour text so it stays readable on whatever is behind it right now
 let adaptEls=[];
@@ -497,25 +504,26 @@ function adaptInk(){
 function build(h){
   const s=sample(h);
   drawScene(h,s);
-  hx.drawImage(S,0,0,W,SC);                                        // sharp scene
+  hx.drawImage(S,0,0,WS,SC);                                       // sharp scene
   // heavy blur, built up in small steps so it stays perfectly smooth (no blocks, no grain)
-  fx.drawImage(S,0,0,FW,FH);dx.drawImage(Fs,0,0,Md.width,Md.height);mx.drawImage(Md,0,0,Mm.width,Mm.height);gx.drawImage(Mm,0,0,W,SC);
-  // frost: a milky white layer (strength = CFG.frost) plus a soft sheen, brighter at the top-left
-  veilA=CFG.frost+.22*(1-s.l);
-  gx.fillStyle=`rgba(236,243,255,${veilA})`;gx.fillRect(0,0,W,SC);
-  const sh=gx.createLinearGradient(0,0,W*.65,SC);
-  sh.addColorStop(0,'rgba(255,255,255,.20)');sh.addColorStop(.5,'rgba(255,255,255,.03)');sh.addColorStop(1,'rgba(255,255,255,.10)');
-  gx.fillStyle=sh;gx.fillRect(0,0,W,SC);
+  fx.drawImage(S,0,0,FW,FH);dx.drawImage(Fs,0,0,Md.width,Md.height);mx.drawImage(Md,0,0,Mm.width,Mm.height);gx.drawImage(Mm,0,0,WS,SC);
+  // frost: a milky layer (strength = CFG.frost) plus a soft sheen. By night the milk turns deep navy so the glass stays dark, not grey
+  nightL=s.l;veilCol=mix(VEIL_DAY,VEIL_NIGHT,s.l*.92);
+  veilA=CFG.frost+.14*(1-s.l);
+  gx.fillStyle=rgba(veilCol,veilA);gx.fillRect(0,0,WS,SC);
+  const sk=1-.75*s.l,sh=gx.createLinearGradient(0,0,WS*.65,SC);
+  sh.addColorStop(0,`rgba(255,255,255,${.14*sk})`);sh.addColorStop(.5,`rgba(255,255,255,${.02*sk})`);sh.addColorStop(1,`rgba(255,255,255,${.06*sk})`);
+  gx.fillStyle=sh;gx.fillRect(0,0,WS,SC);
 
-  // light/dark tint map used to colour the drawn ink + title
+  // tint map for the title + ink: a DARKER version of the glass where the glass is light, a LIGHTER version where it is dark
   FD=fx.getImageData(0,0,FW,FH).data;
   const o=dsx.createImageData(FW,FH);
   for(let i=0;i<FD.length;i+=4){
-    const l=lum(mix([FD[i],FD[i+1],FD[i+2]],VEIL,veilA));
-    o.data[i]=16;o.data[i+1]=36;o.data[i+2]=74;
-    o.data[i+3]=255*cl(.5+.4*Math.log2(ratio(l,LD)/ratio(l,LL)),0,1);
+    const l=lum(mix([FD[i],FD[i+1],FD[i+2]],veilCol,veilA)),t=cl(.5+.4*Math.log2(ratio(l,LD)/ratio(l,LL)),0,1),c=t>=.5?TINT_D:TINT_L;
+    o.data[i]=c[0];o.data[i+1]=c[1];o.data[i+2]=c[2];
+    o.data[i+3]=255*Math.abs(t-.5)*2;
   }
-  dsx.putImageData(o,0,0);dkx.clearRect(0,0,W,SC);dkx.drawImage(DS,0,0,W,SC);
+  dsx.putImageData(o,0,0);dkx.clearRect(0,0,WS,SC);dkx.drawImage(DS,0,0,WS,SC);
 
   adaptInk();
 
@@ -549,7 +557,7 @@ function layoutTitle(){
   lines=words.map((t,i)=>{
     const w=ox.measureText(t).width,x0=(W-w)/2,b=top+fs*(1+1.4*i);
     ox.strokeText(t,x0,b);ox.fillText(t,x0,b);
-    return{x0,x1:x0+w,y0:b-fs,y1:b+fs*.6,b};
+    return{t,x0,x1:x0+w,y0:b-fs,y1:b+fs*.6,b};
   });
 }
 
@@ -574,35 +582,150 @@ function thin(a,w,h){   // Zhang-Suen thinning
     }
     for(const i of del)a[i]=0;if(del.length)ch=true}}
 }
-function trace(L){      // ordered list of points along the pen path for one line of text
-  const pad=Math.ceil(fs*.15),x0=Math.max(0,Math.floor(L.x0-pad)),x1=Math.min(W,Math.ceil(L.x1+pad)),y0=Math.max(0,Math.floor(L.y0)),y1=Math.min(H,Math.ceil(L.y1)),w=x1-x0,h=y1-y0;
-  if(w<=0||h<=0)return [];
-  const id=ox.getImageData(x0,y0,w,h).data,a=new Uint8Array(w*h);
+function prune(a,w,h,n){   // shave short side-branches off the centre line (strip end pixels n times)
+  for(let it=0;it<n;it++){
+    const del=[];
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const i=y*w+x;if(!a[i])continue;
+      const d=a[i-w-1]+a[i-w]+a[i-w+1]+a[i-1]+a[i+1]+a[i+w-1]+a[i+w]+a[i+w+1];
+      if(d===1)del.push(i);
+    }
+    if(!del.length)break;
+    for(const i of del)a[i]=0;
+  }
+}
+function rescue(a0,a,w,h){
+  const lab=new Uint8Array(w*h);
+  for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+    const i=y*w+x;if(!a0[i]||lab[i])continue;
+    const pix=[i];lab[i]=1;let has=false,sx=0,sy=0;
+    for(let q=0;q<pix.length;q++){
+      const c=pix[q],cx=c%w,cy=(c/w)|0;if(a[c])has=true;sx+=cx;sy+=cy;
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const n=(cy+dy)*w+cx+dx;if(a0[n]&&!lab[n]){lab[n]=1;pix.push(n)}}
+    }
+    if(!has){                                         // no centre line left: use the shape's centre
+      let best=pix[0],bd=1e18;const mx=sx/pix.length,my=sy/pix.length;
+      for(const c of pix){const d=((c%w)-mx)**2+(((c/w)|0)-my)**2;if(d<bd){bd=d;best=c}}
+      a[best]=1;
+    }
+  }
+}
+// Builds ONE pen path that writes the text strictly in order, one letter at a time, left to right.
+// gl[] says which letter (1..n, in reading order) each centre-line pixel belongs to.
+// How each letter is started, following standard cursive:
+//   'lowleft' (default) = enter at the bottom-left and stroke UP (h i m r s k e ...)
+//   'bowl'  = round letters start at the top of the oval and go COUNTER-CLOCKWISE (a g c d o q)
+//   'top'   = start at the top of the stem and pull down (p)
+const HINT={a:'bowl',g:'bowl',c:'bowl',d:'bowl',o:'bowl',q:'bowl',p:'top',b:'top',f:'top'};
+function order(a,w,h,gl,n,chars){
+  const nb=[[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]],vis=new Uint8Array(w*h),cid=new Uint8Array(w*h),res=[],byG=Array.from({length:n},()=>[]);
+  for(let i=0;i<a.length;i++)if(a[i]&&gl[i])byG[gl[i]-1].push(i);
+  for(const pix of byG){
+    if(!pix.length)continue;
+    const g=gl[pix[0]];let y0=1e9,y1=-1;
+    // the letter's main body = its biggest connected piece (the stem of an "i"); dots and tips come after it
+    let main=null;
+    for(const i of pix){
+      if(cid[i])continue;
+      const q=[i];cid[i]=1;
+      for(let t=0;t<q.length;t++){const c=q[t];for(const[dx,dy]of nb){const m2=c+dy*w+dx;if(a[m2]&&gl[m2]===g&&!cid[m2]){cid[m2]=1;q.push(m2)}}}
+      if(!main||q.length>main.length)main=q;
+    }
+    for(const i of main){const y=(i/w)|0;if(y<y0)y0=y;if(y>y1)y1=y}
+    // where does this letter start, and which way does the pen first head?
+    const mode=HINT[(chars[g-1]||'').toLowerCase()]||'lowleft';
+    let start=-1,d0=[0,-1],best=1e18,anyStart=main[0],anyBest=1e18,mx0=1e9,mx1=-1;
+    for(const i of main){const x=i%w;if(x<mx0)mx0=x;if(x>mx1)mx1=x}
+    if(mode==='bowl'){                                         // top of the oval, heading left (counter-clockwise)
+      const lim=mx0+(mx1-mx0)*.7;let by=1e9;
+      for(const i of main){const x=i%w,y=(i/w)|0;if(x<=lim&&y<by){by=y;start=i}}
+      d0=[-1,0];
+    }else{
+      const topLimit=y0+(y1-y0)*.42;
+      for(const i of main){
+        const x=i%w,y=(i/w)|0;let deg=0;
+        for(const[dx,dy]of nb){const q=i+dy*w+dx;if(a[q]&&gl[q]===g)deg++}
+        if(mode==='top'){                                      // stroke end near the top, else the top-left
+          const sc=y+.3*x;
+          if(deg<=1&&y<=topLimit&&sc<best){best=sc;start=i}
+          if(sc<anyBest){anyBest=sc;anyStart=i}
+        }else{                                                 // bottom-left stroke end (the entry stroke)
+          const sc=x-.35*y;
+          if(deg<=1&&sc<best){best=sc;start=i}
+          if(sc<anyBest){anyBest=sc;anyStart=i}
+        }
+      }
+      if(mode==='top')d0=[0,1];
+    }
+    if(start<0)start=anyStart;
+    // walk the strokes of this letter (the dot of an "i" is picked up last, from the nearest unvisited point)
+    const out=[];let from=start;
+    for(;;){
+      const stack=[from];
+      while(stack.length){
+        const c=stack.pop();if(vis[c])continue;vis[c]=1;out.push(c);
+        let dx0=d0[0],dy0=d0[1];
+        if(out.length>1){const pc=out[out.length-2],ddx=(c%w)-(pc%w),ddy=((c/w)|0)-((pc/w)|0);if(Math.abs(ddx)<=1&&Math.abs(ddy)<=1&&(ddx||ddy)){dx0=ddx;dy0=ddy}}
+        const cand=[];
+        for(const[dx,dy]of nb){const q=c+dy*w+dx;if(a[q]&&gl[q]===g&&!vis[q])cand.push([q,dx*dx0+dy*dy0])}
+        cand.sort((p,q)=>p[1]-q[1]);                       // best continuation last => popped first
+        for(const k of cand)stack.push(k[0]);
+      }
+      const last=out[out.length-1],lx=last%w,ly=(last/w)|0;let nxt=-1,bd=1e18;
+      for(const i of pix)if(!vis[i]){const d=((i%w)-lx)**2+(((i/w)|0)-ly)**2;if(d<bd){bd=d;nxt=i}}
+      if(nxt<0)break;from=nxt;
+    }
+    for(const i of out)res.push(i);
+  }
+  return res;
+}
+function trace(L){      // pen path for one line of text
+  const ts=Math.min(1,.8/Q);                        // trace a smaller copy: same shape, far faster on retina
+  const pad=Math.ceil(fs*.15),x0=Math.max(0,Math.floor(L.x0-pad)),x1=Math.min(W,Math.ceil(L.x1+pad)),y0=Math.max(0,Math.floor(L.y0)),y1=Math.min(H,Math.ceil(L.y1)),sw=x1-x0,sh=y1-y0;
+  if(sw<=0||sh<=0)return{pts:[],ends:[]};
+  const w=Math.max(3,Math.round(sw*ts)),h=Math.max(3,Math.round(sh*ts));
+  const tmp=mk();tmp.width=w;tmp.height=h;const tc=tmp.getContext('2d',{willReadFrequently:true});
+  tc.drawImage(TF,x0,y0,sw,sh,0,0,w,h);
+  const id=tc.getImageData(0,0,w,h).data,a=new Uint8Array(w*h);
   for(let k=0;k<a.length;k++)a[k]=id[k*4+3]>110?1:0;
   for(let x=0;x<w;x++)a[x]=a[(h-1)*w+x]=0;for(let y=0;y<h;y++)a[y*w]=a[y*w+w-1]=0;
+  const a0=Uint8Array.from(a);
   thin(a,w,h);
-  const pts=[];for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)if(a[y*w+x])pts.push([x,y]);
-  pts.sort((p,q)=>p[0]-q[0]||p[1]-q[1]);
-  const vis=new Uint8Array(w*h),out=[];let si=0,cur=null;
-  for(;;){
-    if(!cur){while(si<pts.length&&vis[pts[si][1]*w+pts[si][0]])si++;if(si>=pts.length)break;cur=pts[si]}
-    vis[cur[1]*w+cur[0]]=1;out.push([cur[0]+x0,cur[1]+y0]);
-    let nx=null,bd=1e9;
-    for(let r=1;r<=3&&!nx;r++)for(let dy=-r;dy<=r;dy++)for(let dX=-r;dX<=r;dX++){
-      if(Math.max(Math.abs(dX),Math.abs(dy))!==r)continue;
-      const X=cur[0]+dX,Y=cur[1]+dy;if(X<0||Y<0||X>=w||Y>=h)continue;
-      const k=Y*w+X;
-      if(a[k]&&!vis[k]){const d=dX*dX+dy*dy-dX*.01;if(d<bd){bd=d;nx=[X,Y]}}
-    }
-    cur=nx;
+  prune(a,w,h,Math.max(2,Math.round(fs*ts*.06)));     // trim the little spurs serifs leave behind
+  rescue(a0,a,w,h);                                   // thinning erases tiny shapes (i-dots): put a point back for each
+  const kx_=sw/w,ky_=sh/h;
+  // which letter does each pixel belong to? (from where each character sits in the text)
+  const t=L.t,xs=[L.x0];for(let k=1;k<=t.length;k++)xs.push(L.x0+ox.measureText(t.slice(0,k)).width);
+  const gl=new Uint8Array(w*h);
+  for(let i=0;i<a.length;i++)if(a[i]){
+    const X=x0+(i%w)*kx_;let k=0;while(k<t.length-1&&X>=xs[k+1])k++;
+    while(k>0&&t[k]===' ')k--;                          // a pixel never belongs to a space
+    gl[i]=k+1;
   }
-  return out;
+  const ord=order(a,w,h,gl,t.length,t),pts=[],ends=[];
+  let cur=-1;
+  for(const i of ord){
+    const k=gl[i]-1;
+    if(k!==cur){if(cur>=0)ends.push({n:pts.length,k:cur});cur=k}
+    pts.push([x0+(i%w)*kx_,y0+((i/w)|0)*ky_]);
+  }
+  if(cur>=0)ends.push({n:pts.length,k:cur});
+  // where each letter's box sits: when the pen reaches the end of a letter, that whole box gets filled in
+  for(const e of ends){e.xa=e.k===0?L.x0-fs*.2:xs[e.k];e.xb=e.k===t.length-1?L.x1+fs*.2:xs[e.k+1]}
+  return{pts,ends};
 }
+// The title is written by one pen: it starts at the top of the "h" and goes letter by letter to the end of "park".
 function startWrite(){
   if(!lines.length)return;
-  if(RM){tx.drawImage(TF,0,0);written=true;textA=.6;fadeAt=0;dirty=1;return}
+  if(RM){tx.drawImage(TF,0,0);written=true;textA=.8;fadeAt=0;dirty=1;return}
   let t0=0;
-  paths=lines.map(L=>{const pts=trace(L),dur=cl(pts.length*1.3,1500,2800),p={pts,t0,dur,i:0,d:0};t0+=dur+300;return p});
+  paths=lines.map(L=>{
+    const tr=trace(L),pts=tr.pts,p={pts,ends:tr.ends,e:0,L,t0,dur:CFG.writeMs,i:0,d:0,slots:[],totalW:0,fills:[]};
+    // time slices: a letter gets time in proportion to its length, but never less than 80% of an average letter
+    const avg=pts.length/Math.max(1,tr.ends.length);let prev=0;
+    for(const E of tr.ends){const wgt=Math.max(E.n-prev,avg*.8);p.slots.push({s:prev,e:E.n,c0:p.totalW,c1:p.totalW+wgt});p.totalW+=wgt;prev=E.n}
+    t0+=CFG.writeMs+350;return p;
+  });
   wst=performance.now();writing=true;textA=1;
 }
 function stepWrite(now){
@@ -610,14 +733,35 @@ function stepWrite(now){
   for(const p of paths){
     const n=p.pts.length;
     if(!n){if(t>=p.t0&&!p.d){tx.drawImage(TF,0,0);p.d=1}else if(!p.d)done=false;continue}
-    const k=Math.floor(cl((t-p.t0)/p.dur,0,1)*n);
-    if(k>p.i){
-      const r=fs*.1;
-      tx.save();tx.beginPath();
-      for(let j=p.i;j<k;j++){const q=p.pts[j];tx.moveTo(q[0]+r,q[1]);tx.arc(q[0],q[1],r,0,6.283)}
-      tx.clip();tx.drawImage(TF,0,0);tx.restore();
-      const q=p.pts[k-1];stamp(q[0],q[1],fs*.17);p.i=k;      // glow under the pen
+    const f=cl((t-p.t0)/p.dur,0,1);                            // steady pen speed along the whole path
+    let k=n;
+    if(f<1){                                                     // which letter's time slice are we in, and how far along it?
+      const tw=f*p.totalW;let j=0;while(j<p.slots.length-1&&tw>=p.slots[j].c1)j++;
+      const S=p.slots[j],u=cl((tw-S.c0)/(S.c1-S.c0),0,1),ue=.5*u+.5*u*u*(3-2*u);   // each letter eases in and out, like a real pen
+      k=Math.floor(S.s+ue*(S.e-S.s));
     }
+    if(k>p.i){
+      const r=fs*.1;let bx0=1e9,by0=1e9,bx1=-1,by1=-1;
+      tx.save();tx.beginPath();
+      for(let j=p.i;j<k;j++){
+        const q=p.pts[j];tx.moveTo(q[0]+r,q[1]);tx.arc(q[0],q[1],r,0,6.283);
+        if(q[0]<bx0)bx0=q[0];if(q[0]>bx1)bx1=q[0];if(q[1]<by0)by0=q[1];if(q[1]>by1)by1=q[1];
+      }
+      tx.clip();
+      const rx=Math.max(0,Math.floor(bx0-r-2)),ry=Math.max(0,Math.floor(by0-r-2)),rw=Math.min(W,Math.ceil(bx1+r+2))-rx,rh=Math.min(H,Math.ceil(by1+r+2))-ry;
+      if(rw>0&&rh>0)tx.drawImage(TF,rx,ry,rw,rh,rx,ry,rw,rh);   // only redraw the small area the pen just covered
+      tx.restore();
+      // a letter is never left half-written: when the pen reaches its end, the rest of the letter fades in
+      while(p.e<p.ends.length&&p.ends[p.e].n<=k)p.fills.push({E:p.ends[p.e++],t0:now});
+      const q=p.pts[k-1];stamp(q[0],q[1],fs*.17);p.i=k;            // soft glow under the pen
+    }
+    for(let m=p.fills.length-1;m>=0;m--){
+      const F=p.fills[m],E=F.E,ya=Math.max(0,Math.floor(p.L.y0-fs*.3)),yh=Math.min(H,Math.ceil(p.L.y1+fs*.3))-ya,xa=Math.max(0,Math.floor(E.xa)),xw=Math.min(W,Math.ceil(E.xb))-xa;
+      const last=now-F.t0>=170;
+      if(xw>0&&yh>0){tx.save();tx.globalAlpha=last?1:.45;tx.drawImage(TF,xa,ya,xw,yh,xa,ya,xw,yh);tx.restore()}
+      if(last)p.fills.splice(m,1);
+    }
+    if(p.fills.length)done=false;
     if(p.i<n)done=false;
   }
   if(done){
@@ -634,13 +778,16 @@ function stepWrite(now){
    ========================================================================== */
 // Everything drawn on the glass (strokes, drips, the title) lives in PAGE coordinates,
 // so it all scrolls with the site.
+let inkY0=1e9,inkY1=-1;                                   // rows of the ink layer that currently hold ink (so fading stays cheap)
+const inkTouch=(a,b)=>{if(a<inkY0)inkY0=a;if(b>inkY1)inkY1=b};
 const drips=[];
-function stamp(x,y,r){
+function stamp(x,y,r){inkTouch(y-r,y+r);
   const g=kx.createRadialGradient(x,y,0,x,y,r);
   g.addColorStop(0,'rgba(255,255,255,.85)');g.addColorStop(1,'rgba(255,255,255,0)');
   kx.fillStyle=g;kx.fillRect(x-r,y-r,r*2,r*2);lastInk=performance.now();
 }
 function seg(x1,y1,x2,y2){
+  inkTouch(Math.min(y1,y2),Math.max(y1,y2));
   kx.save();kx.lineCap=kx.lineJoin='round';kx.lineWidth=24*Q;kx.strokeStyle='#fff';kx.shadowColor='#fff';kx.shadowBlur=12*Q;
   kx.beginPath();kx.moveTo(x1,y1);kx.lineTo(x2,y2);kx.stroke();kx.restore();lastInk=performance.now();
 }
@@ -652,7 +799,7 @@ function stepDrips(now,dt){
   for(let i=drips.length-1;i>=0;i--){
     const d=drips[i];
     if(!d.stop){
-      const dy=d.v*dt/1000*(1+d.d/(d.max*2));d.y+=dy;d.d+=dy;
+      const dy=d.v*dt/1000*(1+d.d/(d.max*2));d.y+=dy;d.d+=dy;inkTouch(d.py,d.y);
       kx.save();kx.lineCap='round';kx.strokeStyle='#fff';kx.lineWidth=4*Q;kx.beginPath();kx.moveTo(d.x,d.py);kx.lineTo(d.x,d.y);kx.stroke();kx.restore();
       d.py=d.y;lastInk=now;
       if(d.d>d.max)d.stop=now;
@@ -694,26 +841,26 @@ document.addEventListener('click',e=>{
    ========================================================================== */
 function render(now){
   const so=sceneOff();                                   // how far down the tall background we are
-  m.globalCompositeOperation='source-over';m.drawImage(FG,0,so,W,H,0,0,W,H);
+  m.globalCompositeOperation='source-over';m.drawImage(FG,0,so,WS,HS,0,0,W,H);
 
   // wiped areas = finger strokes + the title; both are page-tall, so they scroll with the page
   bx.clearRect(0,0,W,H);bx.drawImage(SK,0,-sy);
   if(textA>0){bx.globalAlpha=textA;bx.drawImage(TX,0,-sy);bx.globalAlpha=1}
 
   // reveal the sharp scene through the wipe
-  px.globalCompositeOperation='source-over';px.clearRect(0,0,W,H);px.drawImage(SH,0,so,W,H,0,0,W,H);
+  px.globalCompositeOperation='source-over';px.clearRect(0,0,W,H);px.drawImage(SH,0,so,WS,HS,0,0,W,H);
   px.globalCompositeOperation='destination-in';px.drawImage(CB,0,0);
   m.drawImage(TP,0,0);
 
   // soft glow around the wipe
-  m.save();m.globalCompositeOperation='lighter';m.globalAlpha=.4;m.shadowColor='rgba(255,255,255,.85)';m.shadowBlur=18*Q;m.shadowOffsetX=W+200;
+  m.save();m.globalCompositeOperation='lighter';m.globalAlpha=.3;m.shadowColor='rgba(255,255,255,.85)';m.shadowBlur=18*Q;m.shadowOffsetX=W+200;
   m.drawImage(CB,-W-200,0);m.restore();
 
   // ink tint
   ttx.globalCompositeOperation='source-over';ttx.clearRect(0,0,W,H);ttx.drawImage(CB,0,0);
   ttx.globalCompositeOperation='source-in';ttx.fillStyle='#fff';ttx.fillRect(0,0,W,H);
-  ttx.globalCompositeOperation='source-atop';ttx.drawImage(DK,0,so,W,H,0,0,W,H);
-  m.globalAlpha=.75;m.drawImage(TT,0,0);m.globalAlpha=1;
+  ttx.globalCompositeOperation='source-atop';ttx.drawImage(DK,0,so,WS,HS,0,0,W,H);
+  m.globalAlpha=Math.min(1,CFG.titleTint+.28*nightL);m.drawImage(TT,0,0);m.globalAlpha=1;
 
   // drip heads
   for(const d of drips){
@@ -809,13 +956,17 @@ function frame(now){
   if(now-lastInk<4300){
     inkLive=true;fadeAcc+=dt;
     // bigger, less frequent steps than before: tiny steps round to nothing at low alpha and leave a faint blocky ghost behind
-    while(fadeAcc>=100){fadeAcc-=100;kx.save();kx.globalCompositeOperation='destination-out';kx.fillStyle='rgba(0,0,0,.17)';kx.fillRect(0,0,SK.width,SK.height);kx.restore()}
+    while(fadeAcc>=100){
+      fadeAcc-=100;
+      if(inkY1>=0){const ya=Math.max(0,inkY0-50*Q),yb=Math.min(SK.height,inkY1+50*Q);
+        kx.save();kx.globalCompositeOperation='destination-out';kx.fillStyle='rgba(0,0,0,.17)';kx.fillRect(0,ya,SK.width,yb-ya);kx.restore()}
+    }
   }else if(inkLive){
     // repeated fading can't reach zero (8-bit rounding leaves a faint, blocky ghost), so finish with a clean wipe
-    kx.clearRect(0,0,SK.width,SK.height);inkLive=false;fadeAcc=0;dirty=1;
+    kx.clearRect(0,0,SK.width,SK.height);inkLive=false;fadeAcc=0;inkY0=1e9;inkY1=-1;dirty=1;
   }
   // title settles to 60% after it's written
-  if(written&&!RM){const f=cl((now-fadeAt)/7000,0,1);textA=1-.4*(f*f*(3-2*f))}
+  if(written&&!RM){const f=cl((now-fadeAt)/7000,0,1);textA=1-.2*(f*f*(3-2*f))}
 
   if(dirty||writing||drips.length||now-lastInk<4300||(written&&now<fadeAt+7100)){render(now);dirty=0}
   requestAnimationFrame(frame);
@@ -832,14 +983,14 @@ function fitScene(){
     SK.width=W;SK.height=ph;if(tmp)kx.drawImage(tmp,0,0);
   }
   // background: one screen + the scroll distance (scaled by parallax)
-  const sc=Math.max(H,Math.round(H+Math.max(0,PHcss-cssH)*Q*CFG.parallax));
-  if(sc===SC&&SH.width===W)return false;
+  const sc=Math.max(HS,Math.round(HS+Math.max(0,PHcss-cssH)*QS*CFG.parallax));
+  if(sc===SC&&SH.width===WS)return false;
   SC=sc;
-  SH.width=FG.width=DK.width=W;SH.height=FG.height=DK.height=SC;
-  S.width=Math.ceil(W/3);S.height=Math.ceil(SC/3);
-  Fs.width=FW=Math.ceil(W/32);Fs.height=FH=Math.ceil(SC/32);
-  Md.width=Math.ceil(W/12);Md.height=Math.ceil(SC/12);
-  Mm.width=Math.ceil(W/4);Mm.height=Math.ceil(SC/4);
+  SH.width=FG.width=DK.width=WS;SH.height=FG.height=DK.height=SC;
+  S.width=Math.ceil(WS/3);S.height=Math.ceil(SC/3);
+  Fs.width=FW=Math.ceil(WS/32);Fs.height=FH=Math.ceil(SC/32);
+  Md.width=Math.ceil(WS/12);Md.height=Math.ceil(SC/12);
+  Mm.width=Math.ceil(WS/4);Mm.height=Math.ceil(SC/4);
   DS.width=FW;DS.height=FH;
   smooth([hx,gx,fx,dx,mx,dkx]);
   return true;
@@ -847,7 +998,9 @@ function fitScene(){
 function resize(){
   cssW=document.documentElement.clientWidth;cssH=innerHeight;
   if(!cssW||!cssH)return;                            // hidden / minimised: nothing to size
-  W=Math.round(cssW*Q);H=Math.round(cssH*Q);
+  // title/ink layers follow the screen's pixel density (capped so huge screens stay fast); the blurry background stays low-res
+  Q=cl(Math.min(window.devicePixelRatio||1,Math.sqrt(CFG.maxPixels/(cssW*cssH))),.8,CFG.maxQuality);
+  W=Math.round(cssW*Q);H=Math.round(cssH*Q);WS=Math.round(cssW*QS);HS=Math.round(cssH*QS);
   [cv,CB,TP,TX,TF,TT].forEach(c=>{c.width=W;c.height=H});
   smooth([m,px,bx]);
   drips.length=0;                                    // drips belong to the old layout
