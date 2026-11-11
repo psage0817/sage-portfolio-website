@@ -22,6 +22,9 @@
   --fs-label:    clamp(.95rem, 1.27vw, 1.375rem);
   --fs-tag:      clamp(.78rem, 1.15vw, 1.25rem);
 
+  --bar-top:     calc(env(safe-area-inset-top,0px) + clamp(56px, 5.9vh, 66px));   /* menu + time slider share this top edge */
+  --bar-h:       clamp(44px, 3.2vw, 56px);                                       /* ...and this height */
+
   --menu-bg:     rgba(70,70,70,.42);            /* nav pill opacity        */
   --tag-bg:      rgba(60,60,60,.50);            /* work-tag pill opacity   */
   --work-bg:     #d9d9d9;                       /* blank work placeholders */
@@ -59,10 +62,10 @@ a{color:inherit;text-decoration:none}
    ========================================================================== */
 .menu{
   position:fixed;z-index:3;
-  top:calc(env(safe-area-inset-top,0px) + clamp(56px, 5.9vh, 66px));
+  top:var(--bar-top);
   left:var(--pad-x);
   width:clamp(260px, 34.3vw, 593px);
-  height:clamp(44px, 3.2vw, 56px);
+  height:var(--bar-h);
   box-sizing:border-box;
   display:flex;align-items:center;justify-content:space-between;
   padding:0 clamp(20px, 2.66vw, 46px);
@@ -161,13 +164,16 @@ a{color:inherit;text-decoration:none}
 /* ==========================================================================
    6. TIME SLIDER + LIVE BUTTON (unchanged)
    ========================================================================== */
-.time{position:fixed;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;display:flex;align-items:center;gap:.5rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:.95rem;font-weight:700;color:var(--ink-time);transition:color 1s}
+.time{position:fixed;z-index:3;top:var(--bar-top);right:12px;height:var(--bar-h);box-sizing:border-box;display:flex;align-items:center;gap:.5rem;padding:0 1rem;border-radius:999px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:var(--fs-nav);font-weight:700;color:var(--ink-time);transition:color 1s}
 .time input{width:90px;accent-color:currentColor}
-.time button{font:inherit;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:inline-flex;align-items:center;gap:.4rem;color:#d4182b;background:rgba(255,255,255,.92);border:1.5px solid #d4182b;border-radius:999px;padding:.1rem .65rem .1rem .5rem;cursor:pointer}
+.time button{font:inherit;font-size:inherit;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:inline-flex;align-items:center;gap:.4rem;color:#d4182b;background:rgba(255,255,255,.92);border:1.5px solid #d4182b;border-radius:999px;padding:.1rem .65rem .1rem .5rem;cursor:pointer}
 .time button::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:#e11d2e;animation:blink 1.4s ease-in-out infinite}
 .time button.off{color:#6b7280;border-color:#6b7280}.time button.off::before{background:#6b7280;animation:none}
 @keyframes blink{0%,45%{opacity:1}60%,100%{opacity:.15}}
 .time button:focus-visible,.time input:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+/* small screens: not enough width for both side by side, so the time slider goes back above the menu */
+@media (max-width:760px){.time{top:calc(env(safe-area-inset-top,0px) + 12px);height:auto;padding:.35rem .7rem}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.adj .w.out{display:none}}
 </style>
