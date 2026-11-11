@@ -5,244 +5,877 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Sage Park</title>
 <link href="https://fonts.googleapis.com/css2?family=Beth+Ellen&display=swap" rel="stylesheet">
+
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);
-  padding-bottom:env(safe-area-inset-bottom,0px);
-  --ink:#10244a;--glow:rgba(255,255,255,.55);--sky:#0b1634}
-html{background:var(--sky);
-  scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;font-family:'Alte Haas Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--ink);transition:color 1s}
-#fog{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
-main{position:relative;z-index:1}
-.hero{min-height:calc(100svh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
-  display:flex;
-  flex-direction:column;
-  justify-content:flex-end;
-  align-items:center;
-  gap:.6rem;
-  padding:0 1.5rem 9vh;
-  box-sizing:border-box;
-  touch-action:none;
-  user-select:none;-webkit-user-select:none;text-align:center}
+/* ==========================================================================
+   1. TOKENS
+   Sizes were measured from the Figma frame (1728 x 1117) and converted to
+   clamp()s so the layout holds on any screen.
+   ========================================================================== */
+:root{
+  --pad-x:       clamp(20px, 3.24vw, 56px);     /* page side margin        */
+  --grid-gap-x:  clamp(16px, 6vw, 105px);       /* gap between work cards  */
+  --grid-gap-y:  clamp(44px, 7vh, 96px);
+
+  --fs-nav:      clamp(1rem, 1.55vw, 1.7rem);
+  --fs-sub:      clamp(1.1rem, 1.85vw, 2rem);
+  --fs-label:    clamp(.95rem, 1.27vw, 1.375rem);
+  --fs-tag:      clamp(.78rem, 1.15vw, 1.25rem);
+
+  --menu-bg:     rgba(70,70,70,.42);            /* nav pill opacity        */
+  --tag-bg:      rgba(60,60,60,.50);            /* work-tag pill opacity   */
+  --work-bg:     #d9d9d9;                       /* blank work placeholders */
+
+  /* set live by the script (adaptive text colour + sky colour) */
+  --ink:#10244a;
+  --ink-time:#10244a;
+  --halo:rgba(255,255,255,0);
+  --sky:#0b1634;
+}
+
+/* ==========================================================================
+   2. BASE
+   ========================================================================== */
+html{background:var(--sky)}
+body{
+  margin:0;
+  font-family:'Alte Haas Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;
+  user-select:none;-webkit-user-select:none;
+  overscroll-behavior:none;
+}
+a{color:inherit;text-decoration:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.sub{margin:0;font-size:clamp(1.1rem,2.6vw,1.45rem);
-  font-weight:700;text-shadow:0 0 8px var(--glow),0 0 22px var(--glow);max-width:100%;line-height:1.25}
-.hint{margin:0;font-size:.95rem;opacity:.85;text-shadow:0 0 8px var(--glow),0 0 20px var(--glow);transition:opacity .8s}
+
+/* the foggy window (everything is painted here by the script) */
+#fog{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none}
+
+/* All page content lives in #scroller. The script moves it with a smoothed
+   transform (and moves the canvas title by the same amount, so they never
+   drift apart). The real document height is mirrored onto <body>. */
+#scroller{position:fixed;top:0;left:0;right:0;z-index:1;will-change:transform}
+
+/* ==========================================================================
+   3. MENU (fixed, translucent)
+   ========================================================================== */
+.menu{
+  position:fixed;z-index:3;
+  top:calc(env(safe-area-inset-top,0px) + clamp(56px, 5.9vh, 66px));
+  left:var(--pad-x);
+  width:clamp(260px, 34.3vw, 593px);
+  height:clamp(44px, 3.2vw, 56px);
+  box-sizing:border-box;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(20px, 2.66vw, 46px);
+  border-radius:999px;
+  background:var(--menu-bg);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  color:#fff;font-size:var(--fs-nav);
+}
+.menu a{padding:.2em 0}
+.menu a:focus-visible,.work-media:focus-visible{outline:2px solid #fff;outline-offset:4px;border-radius:6px}
+
+/* ==========================================================================
+   4. HERO
+   ========================================================================== */
+.hero{
+  display:flex;flex-direction:column;align-items:center;
+  padding:clamp(150px, 21vh, 260px) var(--pad-x) 0;
+  text-align:center;
+  touch-action:pan-y;           /* vertical swipes scroll, horizontal strokes draw */
+}
+/* The handwritten title is painted on the canvas. This empty box reserves its
+   space in the page flow; the script sets its height. */
+.title-slot{align-self:stretch;height:200px}
+
+.sub,.hint{
+  margin:0;max-width:100%;
+  font-size:var(--fs-sub);font-weight:500;line-height:1.3;
+  color:var(--ink);
+  /* tiny halo only; set CFG.halo = 0 in the script to remove it entirely */
+  text-shadow:0 0 5px var(--halo);
+  transition:color .6s,opacity .8s;
+}
+.sub{margin-top:clamp(.4rem, 1vh, .9rem)}
+.hint{margin-top:clamp(1.6rem, 4.6vh, 3rem)}
 .drawn .hint{opacity:0}
-.ln{display:block}
-.adj{--px:.7em;--py:.35em;
-  display:inline-block;position:relative;
-  vertical-align:bottom;
-  white-space:nowrap;
-  box-sizing:content-box;
+
+/* sentence breaks into two lines on narrow screens, stays on one line on wide ones */
+.ln{display:inline}
+@media (max-width:900px){.ln{display:block}}
+
+/* ---- rolling words ---- */
+.adj{
+  --px:8em;--py:.35em;   /* side padding = slack so a word that is wider than the box mid-transition stays centred */
+  display:inline-block;position:relative;vertical-align:baseline;
+  white-space:nowrap;box-sizing:content-box;
+  height:1.3em;
   padding:var(--py) var(--px);
   margin:calc(var(--py)*-1) calc(var(--px)*-1);
   transition:width .9s cubic-bezier(.65,0,.35,1);
- -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%),linear-gradient(to right,transparent 0,#000 var(--px),#000 calc(100% - var(--px)),transparent 100%);
- mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%),linear-gradient(to right,transparent 0,#000 var(--px),#000 calc(100% - var(--px)),transparent 100%);
- -webkit-mask-composite:source-in;mask-composite:intersect}
-.adj .w{position:absolute;left:var(--px);right:var(--px);top:var(--py);text-align:center;white-space:nowrap;animation:wi .9s cubic-bezier(.65,0,.35,1) both}
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);
+}
+.adj::before{content:"\200b"}   /* invisible in-flow character: gives the box the same text baseline as the words around it */
+.adj .w{position:absolute;left:0;right:0;top:var(--py);text-align:center;white-space:nowrap;animation:wi .9s cubic-bezier(.65,0,.35,1) both}
 .adj .w.out{animation:wo .9s cubic-bezier(.65,0,.35,1) both}
-.adj{--px:4em;height:1.25em;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
 @keyframes wi{from{transform:translateY(110%)}to{transform:none}}
 @keyframes wo{from{transform:none}to{transform:translateY(-110%)}}
-@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.adj .w.out{display:none}}
-.time{position:fixed;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;display:flex;align-items:center;gap:.5rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:.95rem;font-weight:700;color:var(--pink,#10244a);transition:color 1s}
+
+/* ==========================================================================
+   5. WORKS GRID
+   ========================================================================== */
+.works{padding:clamp(70px, 13vh, 150px) var(--pad-x) calc(clamp(90px, 22vh, 240px) + env(safe-area-inset-bottom,0px))}
+.works-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  column-gap:var(--grid-gap-x);row-gap:var(--grid-gap-y);
+}
+.work-title{
+  margin:0 0 .85em;
+  font-size:var(--fs-label);font-weight:400;line-height:1.2;
+  color:var(--ink);
+  text-shadow:0 0 5px var(--halo);
+  transition:color .6s;
+}
+/* blank placeholder: swap the background for an <img> / video when ready */
+.work-media{
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-start;gap:7px;
+  box-sizing:border-box;aspect-ratio:469/377;
+  padding:0 0 clamp(10px, 1.16vw, 20px) clamp(8px, .81vw, 14px);
+  background:var(--work-bg);
+}
+.tag{
+  padding:.3em 1.1em;border-radius:999px;
+  background:var(--tag-bg);color:#fff;
+  font-size:var(--fs-tag);line-height:1.2;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+@media (max-width:900px){
+  .works-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  .works-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ==========================================================================
+   6. TIME SLIDER + LIVE BUTTON (unchanged)
+   ========================================================================== */
+.time{position:fixed;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;display:flex;align-items:center;gap:.5rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:.95rem;font-weight:700;color:var(--ink-time);transition:color 1s}
 .time input{width:90px;accent-color:currentColor}
 .time button{font:inherit;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:inline-flex;align-items:center;gap:.4rem;color:#d4182b;background:rgba(255,255,255,.92);border:1.5px solid #d4182b;border-radius:999px;padding:.1rem .65rem .1rem .5rem;cursor:pointer}
 .time button::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:#e11d2e;animation:blink 1.4s ease-in-out infinite}
 .time button.off{color:#6b7280;border-color:#6b7280}.time button.off::before{background:#6b7280;animation:none}
 @keyframes blink{0%,45%{opacity:1}60%,100%{opacity:.15}}
 .time button:focus-visible,.time input:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.adj .w.out{display:none}}
 </style>
 </head>
+
 <body>
+
 <canvas id="fog" aria-hidden="true"></canvas>
-<main>
-  <section class="hero">
-    <h1 class="sr">hi, i’m sage park</h1>
-    <p class="sub"><span class="ln">i’m a <span class="adj" id="adj"><span class="w">human centered</span></span> designer</span><span class="ln"><span class="adj" id="tail"><span class="w">based in st. louis and san diego</span></span>.</span></p>
-    <p class="hint">draw on the window</p>
-  </section>
-</main>
+
+<nav class="menu" aria-label="Main">
+  <a href="#top"  data-scroll="#top">home</a>
+  <a href="#work" data-scroll="#work">work</a>
+  <a href="#">sp</a>                       <!-- placeholder: no destination yet -->
+</nav>
+
 <div class="time">
   <span id="tl">Central Time</span>
   <input id="t" type="range" min="0" max="1439" step="1" aria-label="Preview time of day in Central Time">
   <button id="live" type="button">Live</button>
 </div>
+
+<div id="scroller">
+  <main>
+
+    <section class="hero" id="top">
+      <h1 class="sr">hi, i’m sage park</h1>
+      <div class="title-slot" aria-hidden="true"></div>
+      <p class="sub" data-adapt><span class="ln">i’m a <span class="adj" id="adj"><span class="w">human centered</span></span> designer</span> <span class="ln"><span class="adj" id="tail"><span class="w">based in st. louis and san diego</span></span>.</span></p>
+      <p class="hint" data-adapt>draw on the window!</p>
+    </section>
+
+    <section class="works" id="work" aria-label="Selected work">
+      <div class="works-grid">
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>kishimoto mendo</h2>
+          <a class="work-media" href="#" aria-label="kishimoto mendo">
+            <div class="tag">web design</div>
+          </a>
+        </article>
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>invetty</h2>
+          <a class="work-media" href="#" aria-label="invetty">
+            <div class="tag">ux design</div>
+          </a>
+        </article>
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>softspot</h2>
+          <a class="work-media" href="#" aria-label="softspot">
+            <div class="tag">ux design</div>
+            <div class="tag">designathon</div>
+          </a>
+        </article>
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>strike magazine stl</h2>
+          <a class="work-media" href="#" aria-label="strike magazine stl">
+            <div class="tag">art direction</div>
+            <div class="tag">editorial design</div>
+          </a>
+        </article>
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>social media marketing</h2>
+          <a class="work-media" href="#" aria-label="social media marketing">
+            <div class="tag">pr &amp; marketing</div>
+            <div class="tag">graphic design</div>
+          </a>
+        </article>
+
+        <article class="work">
+          <h2 class="work-title" data-adapt>type collection</h2>
+          <a class="work-media" href="#" aria-label="type collection">
+            <div class="tag">typography</div>
+          </a>
+        </article>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
 <script>
 (()=>{
-const TZ='America/Chicago',Q=.8,RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const $=s=>document.querySelector(s),cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+'use strict';
+
+/* ==========================================================================
+   0. SETTINGS — the knobs most likely to need tweaking
+   ========================================================================== */
+const CFG={
+  tz:'America/Chicago',     // time zone driving the sky
+  quality:.8,               // canvas resolution scale (lower = softer + faster)
+  smoothMs:110,             // scroll smoothing (ms). Lower = snappier, higher = floatier
+  smoothMsTouch:45,         // same, for touch screens (they already have momentum)
+  parallax:1,               // background scroll speed vs the page: 1 = moves with the page, <1 = slower (more depth)
+  frost:.34,                // glass frost level: 0 = clear, ~.6 = very milky
+  halo:.22,                 // text halo strength (0 = none). Contrast does most of the work
+  inkDark:'#10244a',        // text colour on light backgrounds
+  inkLight:'#eef3ff',       // text colour on dark backgrounds
+  titleFit:.66,             // title width as a share of the screen (wide screens)
+  titleFitNarrow:.84,       // same, when the title wraps to two lines
+  narrowAt:720,             // px: below this the title wraps to two lines
+  anchorOffset:130          // px of space above a section when the menu scrolls to it
+};
+const Q=CFG.quality;
+const RM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COARSE=matchMedia('(pointer: coarse)').matches;
+
+/* ==========================================================================
+   1. HELPERS
+   ========================================================================== */
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
 const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
-const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t),rgb=c=>`rgb(${c.map(Math.round)})`,rgba=(c,a)=>`rgba(${c.map(Math.round)},${a})`;
+const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const rgb=c=>`rgb(${c.map(Math.round)})`;
+const rgba=(c,a)=>`rgba(${c.map(Math.round)},${a})`;
+
+// seeded random numbers (same city every visit)
+let sd=7;
+const rnd=()=>{sd|=0;sd=sd+0x6D2B79F5|0;let t=Math.imul(sd^sd>>>15,1|sd);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+// stable per-window random number (so lit windows don't flicker while scrolling)
+const hash=(a,b,c)=>{let h=a*374761393+b*668265263+c*2147483647|0;h=(h^h>>>13)*1274126177|0;return((h^h>>>16)>>>0)/4294967296};
+
+/* ==========================================================================
+   2. TIME OF DAY
+   ========================================================================== */
 const P={
- night:{c:['#050816','#0b1634','#16254a'].map(hex),l:1,k:.05},
- dawn:{c:['#3d4c8a','#d68aa2','#f7c690'].map(hex),l:.35,k:.6},
- day:{c:['#2a6fdb','#5ea3ea','#8fc9b4'].map(hex),l:0,k:1},
- dusk:{c:['#363c7d','#b8709a','#f0a070'].map(hex),l:.55,k:.7}};
+  night:{c:['#050816','#0b1634','#16254a'].map(hex),l:1,k:.05},
+  dawn: {c:['#3d4c8a','#d68aa2','#f7c690'].map(hex),l:.35,k:.6},
+  day:  {c:['#2a6fdb','#5ea3ea','#8fc9b4'].map(hex),l:0,k:1},
+  dusk: {c:['#363c7d','#b8709a','#f0a070'].map(hex),l:.55,k:.7}
+};
 // sunrise 6:00, sunset 19:00
 const K=[[0,'night'],[5,'night'],[6,'dawn'],[8.5,'day'],[16.5,'day'],[19,'dusk'],[20.5,'night'],[24,'night']];
-function sample(h){let i=0;while(i<K.length-2&&h>K[i+1][0])i++;
- const[a,pa]=K[i],[b,pb]=K[i+1];let t=cl((h-a)/(b-a),0,1);t=t*t*(3-2*t);const A=P[pa],B=P[pb];
- return{c:A.c.map((x,j)=>mix(x,B.c[j],t)),l:A.l+(B.l-A.l)*t,k:A.k+(B.k-A.k)*t}}
-function ctHours(){const p=new Intl.DateTimeFormat('en-US',{timeZone:TZ,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}).formatToParts(new Date());
- const g=t=>+p.find(x=>x.type===t).value;return g('hour')+g('minute')/60+g('second')/3600}
-let sd=7;const rnd=()=>{sd|=0;sd=sd+0x6D2B79F5|0;let t=Math.imul(sd^sd>>>15,1|sd);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
-const BL=[];for(let x=0;x<1;){const w=.03+rnd()*.05,h=.05+rnd()*.14*(x>.35&&x<.75?1:.55),win=[];for(let i=0;i<10;i++)win.push([rnd(),rnd(),rnd()<.55]);BL.push({x,w,h,win});x+=w+rnd()*.005}
-const LT=Array.from({length:70},()=>({x:rnd(),y:rnd(),r:.008+rnd()*.02}));
-const CL=Array.from({length:6},(_,i)=>({x:i/6+rnd()*.1,y:.08+rnd()*.35,s:.1+rnd()*.12}));
+function sample(h){
+  let i=0;while(i<K.length-2&&h>K[i+1][0])i++;
+  const[a,pa]=K[i],[b,pb]=K[i+1];
+  let t=cl((h-a)/(b-a),0,1);t=t*t*(3-2*t);
+  const A=P[pa],B=P[pb];
+  return{c:A.c.map((x,j)=>mix(x,B.c[j],t)),l:A.l+(B.l-A.l)*t,k:A.k+(B.k-A.k)*t};
+}
+function ctHours(){
+  const p=new Intl.DateTimeFormat('en-US',{timeZone:CFG.tz,hour:'numeric',minute:'numeric',second:'numeric',hourCycle:'h23'}).formatToParts(new Date());
+  const g=t=>+p.find(x=>x.type===t).value;
+  return g('hour')+g('minute')/60+g('second')/3600;
+}
+
+/* ==========================================================================
+   3. THE CITY
+   One tall drawing that runs the full length of the page: sky at the top, a hazy
+   skyline, then taller and closer towers, then the street at the very bottom.
+   Scrolling just pans down it. Heights are in "screens" (vh = one screen tall).
+   ========================================================================== */
+const NIGHT=[8,12,30];
+const LAYERS=[
+  // zone = where the roofs sit · w/gap = widths · dark/haze = colour · cell = window grid · lit = share of lit windows
+  {zone:(vh,T)=>[.50*vh,.68*vh],                                      w:[.035,.080],gap:[0,.012],   dark:.50,haze:.38,cell:[5,6],lit:.50},  // far skyline
+  {zone:(vh,T)=>{const D=Math.max(0,T-.8*vh);return[.80*vh,.80*vh+.50*D]},   w:[.050,.110],gap:[.004,.03],dark:.70,haze:.20,cell:[6,8],lit:.55},  // mid towers
+  {zone:(vh,T)=>{const D=Math.max(0,T-.8*vh);return[.80*vh+.20*D,.80*vh+.60*D]},w:[.060,.130],gap:[.012,.06],dark:.86,haze:.08,cell:[7,9],lit:.60}   // near towers
+];
+LAYERS.forEach((L,li)=>{
+  L.b=[];
+  for(let x=-.02,i=0;x<1.02;i++){
+    const w=L.w[0]+rnd()*(L.w[1]-L.w[0]);
+    L.b.push({id:li*1000+i,x,w,t:rnd(),bias:.4+.9*rnd()});     // t = 0..1 position inside the layer's roof zone
+    x+=w+L.gap[0]+rnd()*(L.gap[1]-L.gap[0]);
+  }
+});
+const STREET=Array.from({length:70},()=>({x:rnd(),y:rnd(),r:.008+rnd()*.02}));
+const CLOUDS=Array.from({length:6},(_,i)=>({x:i/6+rnd()*.1,y:.08+rnd()*.35,s:.1+rnd()*.12}));
+
+/* ==========================================================================
+   4. CANVAS LAYERS
+     cv / m  visible canvas                    S    scene, 1/3 resolution
+     SH      sharp scene (seen where wiped)    Fs/Md  blur steps
+     FG      frosted glass                     SK   finger strokes + drips
+     CB      strokes + title (the "wipe" mask) TP   sharp scene cut by CB
+     TF      title outline (page coords)       TX   title as written so far
+     Mm      extra blur step
+     SH, FG, DK and the blur steps are TALL (the whole page); SK (ink) is also page-tall.
+     TT      ink tint                          DK/DS  light/dark tint map
+   ========================================================================== */
 const mk=()=>document.createElement('canvas');
 const cv=$('#fog'),m=cv.getContext('2d');
-const S=mk(),sx=S.getContext('2d'),Fs=mk(),fx=Fs.getContext('2d'),Md=mk(),dx=Md.getContext('2d'),SH=mk(),hx=SH.getContext('2d'),
- FG=mk(),gx=FG.getContext('2d'),SK=mk(),kx=SK.getContext('2d'),CB=mk(),bx=CB.getContext('2d'),TP=mk(),px=TP.getContext('2d'),
- TX=mk(),tx=TX.getContext('2d'),TF=mk(),ox=TF.getContext('2d'),TT=mk(),ttx=TT.getContext('2d'),DK=mk(),dkx=DK.getContext('2d'),DS=mk(),dsx=DS.getContext('2d',{willReadFrequently:true});
-const noise=mk();noise.width=noise.height=160;
-{const n=noise.getContext('2d'),d=n.createImageData(160,160);for(let i=0;i<d.data.length;i+=4){const v=rnd()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=rnd()<.04?255:rnd()*150}n.putImageData(d,0,0)}
-let cssW,cssH,W,H,fs=0,lines=[],live=true,prevH=12,dirty=1,lastInk=0;
+const S=mk(),sx=S.getContext('2d'),
+  Fs=mk(),fx=Fs.getContext('2d',{willReadFrequently:true}),
+  Md=mk(),dx=Md.getContext('2d'),
+  Mm=mk(),mx=Mm.getContext('2d'),
+  SH=mk(),hx=SH.getContext('2d'),
+  FG=mk(),gx=FG.getContext('2d'),
+  SK=mk(),kx=SK.getContext('2d'),
+  CB=mk(),bx=CB.getContext('2d'),
+  TP=mk(),px=TP.getContext('2d'),
+  TX=mk(),tx=TX.getContext('2d'),
+  TF=mk(),ox=TF.getContext('2d'),
+  TT=mk(),ttx=TT.getContext('2d'),
+  DK=mk(),dkx=DK.getContext('2d'),
+  DS=mk(),dsx=DS.getContext('2d');
+
+// shared state
+let cssW=0,cssH=0,W=0,H=0;       // viewport size in css px / canvas px
+let SC=0,PHcss=0;                // height of the tall scene (canvas px) and of the page (css px)
+let live=true,prevH=12,dirty=1,lastInk=0;
+let vy=0,maxY=1,sy=0,lastAdapt=0;   // scroll: smoothed offset (css px), scroll range, same offset in canvas px
 const curH=()=>live?ctHours():prevH;
-function glow(c,x,y,r,col,a){const g=c.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rgba(col,a));g.addColorStop(1,rgba(col,0));c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2)}
-function drawScene(h,s){
- const w=S.width,ht=S.height,c=sx;
- const g=c.createLinearGradient(0,0,0,ht);g.addColorStop(0,rgb(s.c[0]));g.addColorStop(.55,rgb(s.c[1]));g.addColorStop(1,rgb(s.c[2]));
- c.fillStyle=g;c.fillRect(0,0,w,ht);
- const t=(h-6)/13,sa=cl((t+.06)/.12,0,1)*cl((1.06-t)/.12,0,1);
- if(sa>0){const e=Math.sin(Math.PI*cl(t,0,1));glow(c,w*(.15+.7*cl(t,-.05,1.05)),ht*(.66-.5*e),ht*(.35+.1*(1-e)),mix([255,170,110],[255,244,214],e),.9*sa)}
- const tm=((h-19+24)%24)/11;
- if(tm<1&&s.l>0){const x=w*(.85-.7*tm),y=ht*(.55-.35*Math.sin(Math.PI*tm));glow(c,x,y,ht*.3,[190,205,255],.5*s.l);glow(c,x,y,ht*.05,[235,240,255],.9*s.l)}
- const cc=mix([255,255,255],s.c[2],.25);
- for(const k of CL){const x=((k.x+h*.012)%1.3-.15)*w,y=k.y*ht;for(let j=0;j<5;j++)glow(c,x+(j-2)*k.s*ht*.7,y+(j%2?-1:1)*k.s*ht*.15,k.s*ht*.9,cc,s.k*.5)}
- const base=ht*.74,body=mix(s.c[1],[8,12,30],.75);
- for(const b of BL){c.fillStyle=rgb(body);c.fillRect(b.x*w,base-b.h*ht,b.w*w+1,b.h*ht+2);
-  if(s.l>.05)for(const q of b.win)if(q[2]){c.fillStyle=rgba([255,196,110],.9*s.l);c.fillRect(b.x*w+q[0]*b.w*w,base-b.h*ht+q[1]*b.h*ht,1.2,1.2)}}
- const hz=c.createLinearGradient(0,base-ht*.18,0,base+ht*.06);hz.addColorStop(0,rgba(s.c[2],0));hz.addColorStop(.75,rgba(s.c[2],.4));hz.addColorStop(1,rgba(s.c[2],0));c.fillStyle=hz;c.fillRect(0,base-ht*.18,w,ht*.24);
- c.fillStyle=rgb(mix(s.c[1],[6,10,24],.88));c.fillRect(0,base+ht*.02,w,ht);
- for(const q of[[.86,.02],[.93,.0],[.8,.05]]){glow(c,q[0]*w,base+ht*q[1],ht*.09,mix(s.c[1],[6,10,24],.9),1)}
- if(s.l>.05)for(const q of LT)glow(c,q.x*w,base+ht*(.01+q.y*.25),q.r*ht,[255,190,110],.6*s.l);
+
+/* ==========================================================================
+   5. SCENE  (sky, sun/moon, clouds, buildings, street)
+   ========================================================================== */
+function glow(c,x,y,r,col,a){
+  const g=c.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,rgba(col,a));g.addColorStop(1,rgba(col,0));
+  c.fillStyle=g;c.fillRect(x-r,y-r,r*2,r*2);
 }
-const sm=mk();sm.width=sm.height=4;const smx=sm.getContext('2d',{willReadFrequently:true});
-const lin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)},lum=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
-const LD=lum([16,36,74]),LL=lum([238,243,255]);let tintCol='#fff';
-function avg(r){const x=cl(r.x,0,W-1),y=cl(r.y,0,H-1),w=cl(r.w,1,W-x),h=cl(r.h,1,H-y);smx.clearRect(0,0,4,4);smx.drawImage(FG,x,y,w,h,0,0,4,4);const d=smx.getImageData(0,0,4,4).data,o=[0,0,0];for(let i=0;i<64;i+=4){o[0]+=d[i];o[1]+=d[i+1];o[2]+=d[i+2]}return o.map(v=>v/16)}
-function darkBest(c){const l=lum(c),f=(a,b)=>(Math.max(a,b)+.05)/(Math.min(a,b)+.05);return f(l,LD)>=f(l,LL)}
+
+function drawScene(h,s){
+  const c=sx,w=S.width,T=S.height,vh=H/3;      // T = whole scene height, vh = one screen, both in scene pixels
+
+  // sky: the original one-screen gradient; below the horizon it just holds its colour
+  const g=c.createLinearGradient(0,0,0,vh);
+  g.addColorStop(0,rgb(s.c[0]));g.addColorStop(.55,rgb(s.c[1]));g.addColorStop(1,rgb(s.c[2]));
+  c.fillStyle=g;c.fillRect(0,0,w,T);
+
+  // sun
+  const t=(h-6)/13,sa=cl((t+.06)/.12,0,1)*cl((1.06-t)/.12,0,1);
+  if(sa>0){
+    const e=Math.sin(Math.PI*cl(t,0,1));
+    glow(c,w*(.15+.7*cl(t,-.05,1.05)),vh*(.66-.5*e),vh*(.35+.1*(1-e)),mix([255,170,110],[255,244,214],e),.9*sa);
+  }
+  // moon
+  const tm=((h-19+24)%24)/11;
+  if(tm<1&&s.l>0){
+    const x=w*(.85-.7*tm),y=vh*(.55-.35*Math.sin(Math.PI*tm));
+    glow(c,x,y,vh*.3,[190,205,255],.5*s.l);glow(c,x,y,vh*.05,[235,240,255],.9*s.l);
+  }
+  // clouds
+  const cc=mix([255,255,255],s.c[2],.25);
+  for(const k of CLOUDS){
+    const x=((k.x+h*.012)%1.3-.15)*w,y=k.y*vh;
+    for(let j=0;j<5;j++)glow(c,x+(j-2)*k.s*vh*.7,y+(j%2?-1:1)*k.s*vh*.15,k.s*vh*.9,cc,s.k*.5);
+  }
+
+  // buildings, far to near
+  LAYERS.forEach((L,li)=>{
+    const[lo,hi]=L.zone(vh,T),body=mix(mix(s.c[1],NIGHT,L.dark),s.c[2],L.haze);
+    c.fillStyle=rgb(body);
+    for(const b of L.b){const y0=lo+(hi-lo)*b.t;c.fillRect(b.x*w,y0,b.w*w+1,T-y0+2)}
+
+    // windows: warm lights at night, faint glass by day
+    const cw=L.cell[0],ch=L.cell[1],ww=Math.max(1.2,cw*.42),wh=Math.max(1.4,ch*.42);
+    const eachWindow=fn=>{
+      for(const b of L.b){
+        const y0=lo+(hi-lo)*b.t,cols=Math.max(1,Math.floor(b.w*w/cw)-1),rows=Math.ceil((T-y0)/ch);
+        for(let r=0;r<rows;r++)for(let q=0;q<cols;q++)fn(b,q,r,b.x*w+cw*.6+q*cw,y0+ch*(r+.6));
+      }
+    };
+    if(s.l>.05){
+      c.fillStyle=rgba([255,196,110],.9*s.l);
+      eachWindow((b,q,r,x,y)=>{if(hash(b.id,q,r)<L.lit*b.bias)c.fillRect(x,y,ww,wh)});
+    }
+    if(s.l<.95){
+      c.fillStyle=rgba(mix(body,[210,230,255],.5),.45*(1-s.l));
+      eachWindow((b,q,r,x,y)=>{if(hash(b.id,q,r+999)<.75)c.fillRect(x,y,ww,wh)});
+    }
+
+    // haze at the horizon, between the far skyline and the nearer towers
+    if(li===0){
+      const hy=vh*.74,hz=c.createLinearGradient(0,hy-vh*.18,0,hy+vh*.06);
+      hz.addColorStop(0,rgba(s.c[2],0));hz.addColorStop(.75,rgba(s.c[2],.4));hz.addColorStop(1,rgba(s.c[2],0));
+      c.fillStyle=hz;c.fillRect(0,hy-vh*.18,w,vh*.24);
+    }
+  });
+
+  // street at the very bottom of the page
+  const gy=T-vh*.16;
+  c.fillStyle=rgb(mix(s.c[1],[6,10,24],.9));c.fillRect(0,gy,w,T-gy+2);
+  if(s.l>.05)for(const q of STREET)glow(c,q.x*w,gy+vh*(.01+q.y*.14),q.r*vh,[255,190,110],.6*s.l);
+}
+
+/* ==========================================================================
+   6. FROSTED GLASS + ADAPTIVE TEXT COLOUR
+   ========================================================================== */
+const lin=v=>{v/=255;return v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)};
+const lum=c=>.2126*lin(c[0])+.7152*lin(c[1])+.0722*lin(c[2]);
+const ratio=(a,b)=>(Math.max(a,b)+.05)/(Math.min(a,b)+.05);
+const INK_D=hex(CFG.inkDark),INK_L=hex(CFG.inkLight),LD=lum(INK_D),LL=lum(INK_L);
+const VEIL=[236,243,255];
+let FD=null,FW=0,FH=0,veilA=.3;
+// how far down the tall background we're looking right now (canvas px)
+const sceneOff=()=>cl(sy*CFG.parallax,0,Math.max(0,SC-H));
+
+// dark text or light text? picks the better contrast; `prev` adds a little hysteresis so it never flickers
+function pickDark(c,prev){
+  const l=lum(c),d=ratio(l,LD),w=ratio(l,LL),bias=prev===true?1.1:prev===false?.9:1;
+  return d*bias>=w;
+}
+// average colour of the fog behind a rectangle (viewport px)
+function sampleRect(r){
+  const so=sceneOff(),kx_=FW/cssW,ky_=FH/SC;
+  const x0=cl(Math.floor(r.left*kx_),0,FW-1),x1=cl(Math.ceil(r.right*kx_),x0+1,FW);
+  const y0=cl(Math.floor((r.top*Q+so)*ky_),0,FH-1),y1=cl(Math.ceil((r.bottom*Q+so)*ky_),y0+1,FH);
+  let R=0,G=0,B=0,n=0;
+  for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++){const i=(yy*FW+xx)*4;R+=FD[i];G+=FD[i+1];B+=FD[i+2];n++}
+  return mix([R/n,G/n,B/n],VEIL,veilA);
+}
+// re-colour text so it stays readable on whatever is behind it right now
+let adaptEls=[];
+function adaptInk(){
+  if(!FD)return;
+  lastAdapt=performance.now();
+  const root=document.documentElement.style,t=$('.time');
+  t._d=pickDark(sampleRect(t.getBoundingClientRect()),t._d);
+  root.setProperty('--ink-time',t._d?CFG.inkDark:CFG.inkLight);
+  for(const el of adaptEls){
+    const r=el.getBoundingClientRect();
+    if(r.bottom<0||r.top>cssH)continue;                 // off-screen: leave as is
+    const d=pickDark(sampleRect(r),el._d);el._d=d;
+    el.style.setProperty('--ink',d?CFG.inkDark:CFG.inkLight);
+    el.style.setProperty('--halo',rgba(d?[255,255,255]:[5,8,22],CFG.halo));
+  }
+}
+
+// redraw the whole tall background for the current sky (runs on load, resize and as the time of day changes; NOT on scroll)
 function build(h){
- const s=sample(h);drawScene(h,s);
- hx.drawImage(S,0,0,W,H);
- fx.drawImage(S,0,0,Fs.width,Fs.height);dx.drawImage(Fs,0,0,Md.width,Md.height);gx.drawImage(Md,0,0,W,H);
- const a=.16+.26*(1-s.l);gx.fillStyle=`rgba(236,243,255,${a})`;gx.fillRect(0,0,W,H);
- gx.globalAlpha=.1;gx.fillStyle=gx.createPattern(noise,'repeat');gx.fillRect(0,0,W,H);gx.globalAlpha=1;
- {const id=dx.getImageData(0,0,Md.width,Md.height),d=id.data,o=dsx.createImageData(Md.width,Md.height),f=(p,q)=>(Math.max(p,q)+.05)/(Math.min(p,q)+.05);
-  for(let i=0;i<d.length;i+=4){const l=lum(mix([d[i],d[i+1],d[i+2]],[236,243,255],a));o.data[i]=16;o.data[i+1]=36;o.data[i+2]=74;o.data[i+3]=255*cl(.5+.4*Math.log2(f(l,LD)/f(l,LL)),0,1)}
-  dsx.putImageData(o,0,0);dkx.clearRect(0,0,W,H);dkx.drawImage(DS,0,0,W,H)}
- const sb=$('.sub').getBoundingClientRect(),hb=$('.hint').getBoundingClientRect(),pb=$('.time').getBoundingClientRect(),L0=lines[0],L1=lines[1];
- const d1=darkBest(avg({x:Math.min(sb.left,hb.left)*Q,y:sb.top*Q,w:Math.max(sb.width,hb.width)*Q,h:(hb.bottom-sb.top)*Q})),d2=darkBest(avg({x:pb.left*Q,y:pb.top*Q,w:pb.width*Q,h:pb.height*Q})),d3=L0?darkBest(avg({x:L0.x0,y:L0.y0,w:L1.x1-L0.x0,h:L1.y1-L0.y0})):false,r=document.documentElement.style;
- r.setProperty('--ink',d1?'#10244a':'#eef3ff');r.setProperty('--glow',d1?'rgba(255,255,255,.75)':'rgba(5,8,22,.7)');r.setProperty('--pink',d2?'#10244a':'#eef3ff');r.setProperty('--sky',rgb(s.c[0]));tintCol=d3?'#10244a':'#ffffff';
- const mins=Math.floor(h*60)%1440,hr=Math.floor(mins/60),mn=mins%60;
- $('#tl').textContent=`CT ${(hr%12)||12}:${String(mn).padStart(2,'0')} ${hr<12?'am':'pm'}`;
- if(live)$('#t').value=mins;
- dirty=1}
-function layoutText(){
- fs=Math.min(cssW*.15,cssH*.19,190)*Q;ox.clearRect(0,0,W,H);
- ox.font=`${fs}px "Beth Ellen",cursive`;ox.textBaseline='alphabetic';ox.lineJoin='round';ox.fillStyle=ox.strokeStyle='#fff';ox.lineWidth=fs*.012;
- const T=['hi, i\u2019m','sage park'],x0=cssW*.09*Q,b1=H*.32;
- lines=T.map((t,i)=>{const b=b1+i*fs*1.4,w=ox.measureText(t).width;ox.strokeText(t,x0,b);ox.fillText(t,x0,b);return{x0,x1:x0+w,y0:b-fs*(i?.8:1),y1:b+fs*.6,b,px:x0-6*Q}})}
-let written=false,writing=false,wst=0,fadeAt=0,textA=0;
-function resize(){
- cssW=innerWidth;cssH=innerHeight;W=Math.round(cssW*Q);H=Math.round(cssH*Q);
- [cv,SH,FG,SK,CB,TP,TX,TF,TT,DK].forEach(c=>{c.width=W;c.height=H});
- S.width=Math.ceil(W/3);S.height=Math.ceil(H/3);Fs.width=Math.ceil(W/24);Fs.height=Math.ceil(H/24);Md.width=Math.ceil(W/8);Md.height=Math.ceil(H/8);DS.width=Md.width;DS.height=Md.height;
- [m,hx,gx,px,bx,fx,dx,dkx].forEach(c=>{c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high'});
- layoutText();if(written){tx.drawImage(TF,0,0)}
- build(curH())}
-function stamp(x,y,r){const g=kx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,'rgba(255,255,255,.85)');g.addColorStop(1,'rgba(255,255,255,0)');kx.fillStyle=g;kx.fillRect(x-r,y-r,r*2,r*2);lastInk=performance.now()}
-function seg(x1,y1,x2,y2){kx.save();kx.lineCap=kx.lineJoin='round';kx.lineWidth=24*Q;kx.strokeStyle='#fff';kx.shadowColor='#fff';kx.shadowBlur=12*Q;
- kx.beginPath();kx.moveTo(x1,y1);kx.lineTo(x2,y2);kx.stroke();kx.restore();lastInk=performance.now()}
-const drips=[];
-function spawn(x,y){if(RM||drips.length>28)return;drips.push({x,y,py:y,v:(14+rnd()*26)*Q,max:(40+rnd()*110)*Q,d:0,stop:0});lastInk=performance.now()}
-function stepDrips(now,dt){for(let i=drips.length-1;i>=0;i--){const d=drips[i];
- if(!d.stop){const dy=d.v*dt/1000*(1+d.d/(d.max*2));d.y+=dy;d.d+=dy;
-  kx.save();kx.lineCap='round';kx.strokeStyle='#fff';kx.lineWidth=4*Q;kx.beginPath();kx.moveTo(d.x,d.py);kx.lineTo(d.x,d.y);kx.stroke();kx.restore();d.py=d.y;lastInk=now;
-  if(d.d>d.max)d.stop=now}
- else if(now-d.stop>3000)drips.splice(i,1)}}
-// Handwriting: thin the rendered text to a centerline, then walk a pen along it and reveal the glyphs under the pen.
-function thin(a,w,h){let ch=true;while(ch){ch=false;for(let pass=0;pass<2;pass++){const del=[];
- for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;if(!a[i])continue;
-  const p2=a[i-w],p3=a[i-w+1],p4=a[i+1],p5=a[i+w+1],p6=a[i+w],p7=a[i+w-1],p8=a[i-1],p9=a[i-w-1],B=p2+p3+p4+p5+p6+p7+p8+p9;
-  if(B<2||B>6)continue;
-  const A=(!p2&&p3?1:0)+(!p3&&p4?1:0)+(!p4&&p5?1:0)+(!p5&&p6?1:0)+(!p6&&p7?1:0)+(!p7&&p8?1:0)+(!p8&&p9?1:0)+(!p9&&p2?1:0);
-  if(A!==1)continue;
-  if(pass===0){if(p2*p4*p6||p4*p6*p8)continue}else{if(p2*p4*p8||p2*p6*p8)continue}
-  del.push(i)}
- for(const i of del)a[i]=0;if(del.length)ch=true}}}
-function trace(L){
- const pad=Math.ceil(fs*.15),x0=Math.max(0,Math.floor(L.x0-pad)),x1=Math.min(W,Math.ceil(L.x1+pad)),y0=Math.max(0,Math.floor(L.y0)),y1=Math.min(H,Math.ceil(L.y1)),w=x1-x0,h=y1-y0;
- const id=ox.getImageData(x0,y0,w,h).data,a=new Uint8Array(w*h);for(let k=0;k<a.length;k++)a[k]=id[k*4+3]>110?1:0;
- for(let x=0;x<w;x++)a[x]=a[(h-1)*w+x]=0;for(let y=0;y<h;y++)a[y*w]=a[y*w+w-1]=0;
- thin(a,w,h);
- const pts=[];for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)if(a[y*w+x])pts.push([x,y]);pts.sort((p,q)=>p[0]-q[0]||p[1]-q[1]);
- const vis=new Uint8Array(w*h),out=[];let si=0,cur=null;
- for(;;){
-  if(!cur){while(si<pts.length&&vis[pts[si][1]*w+pts[si][0]])si++;if(si>=pts.length)break;cur=pts[si]}
-  vis[cur[1]*w+cur[0]]=1;out.push([cur[0]+x0,cur[1]+y0]);
-  let nx=null,bd=1e9;
-  for(let r=1;r<=3&&!nx;r++)for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){if(Math.max(Math.abs(dx),Math.abs(dy))!==r)continue;const X=cur[0]+dx,Y=cur[1]+dy;if(X<0||Y<0||X>=w||Y>=h)continue;const k=Y*w+X;if(a[k]&&!vis[k]){const d=dx*dx+dy*dy-dx*.01;if(d<bd){bd=d;nx=[X,Y]}}}
-  cur=nx}
- return out}
-let paths=[];
+  const s=sample(h);
+  drawScene(h,s);
+  hx.drawImage(S,0,0,W,SC);                                        // sharp scene
+  // heavy blur, built up in small steps so it stays perfectly smooth (no blocks, no grain)
+  fx.drawImage(S,0,0,FW,FH);dx.drawImage(Fs,0,0,Md.width,Md.height);mx.drawImage(Md,0,0,Mm.width,Mm.height);gx.drawImage(Mm,0,0,W,SC);
+  // frost: a milky white layer (strength = CFG.frost) plus a soft sheen, brighter at the top-left
+  veilA=CFG.frost+.22*(1-s.l);
+  gx.fillStyle=`rgba(236,243,255,${veilA})`;gx.fillRect(0,0,W,SC);
+  const sh=gx.createLinearGradient(0,0,W*.65,SC);
+  sh.addColorStop(0,'rgba(255,255,255,.20)');sh.addColorStop(.5,'rgba(255,255,255,.03)');sh.addColorStop(1,'rgba(255,255,255,.10)');
+  gx.fillStyle=sh;gx.fillRect(0,0,W,SC);
+
+  // light/dark tint map used to colour the drawn ink + title
+  FD=fx.getImageData(0,0,FW,FH).data;
+  const o=dsx.createImageData(FW,FH);
+  for(let i=0;i<FD.length;i+=4){
+    const l=lum(mix([FD[i],FD[i+1],FD[i+2]],VEIL,veilA));
+    o.data[i]=16;o.data[i+1]=36;o.data[i+2]=74;
+    o.data[i+3]=255*cl(.5+.4*Math.log2(ratio(l,LD)/ratio(l,LL)),0,1);
+  }
+  dsx.putImageData(o,0,0);dkx.clearRect(0,0,W,SC);dkx.drawImage(DS,0,0,W,SC);
+
+  adaptInk();
+
+  const mins=Math.floor(h*60)%1440,hr=Math.floor(mins/60),mn=mins%60;
+  $('#tl').textContent=`CT ${(hr%12)||12}:${String(mn).padStart(2,'0')} ${hr<12?'am':'pm'}`;
+  if(live)$('#t').value=mins;
+  $('html').style.setProperty('--sky',rgb(s.c[0]));
+  dirty=1;
+}
+
+/* ==========================================================================
+   7. TITLE  (handwritten "hi, i'm sage park")
+   Drawn in page coordinates, so it scrolls away with the page.
+   ========================================================================== */
+let fs=0,lines=[],slot,scroller;
+function pageTop(el){return el.getBoundingClientRect().top+vy}   // element's distance from the top of the page
+
+function layoutTitle(){
+  const narrow=cssW<CFG.narrowAt,words=narrow?['hi, i\u2019m','sage park']:['hi, i\u2019m sage park'];
+  ox.clearRect(0,0,W,H);
+  ox.font='100px "Beth Ellen",cursive';
+  const widest=Math.max(...words.map(t=>ox.measureText(t).width));
+  fs=Math.min(100*(cssW*(narrow?CFG.titleFitNarrow:CFG.titleFit)*Q)/widest,cssH*.24*Q,240*Q);
+
+  // reserve the title's space in the page so the text below flows underneath it
+  slot.style.height=(fs/Q*(1.45+1.4*(words.length-1)))+'px';
+  const top=pageTop(slot)*Q;
+
+  ox.font=`${fs}px "Beth Ellen",cursive`;ox.textBaseline='alphabetic';ox.lineJoin='round';
+  ox.fillStyle=ox.strokeStyle='#fff';ox.lineWidth=fs*.012;
+  lines=words.map((t,i)=>{
+    const w=ox.measureText(t).width,x0=(W-w)/2,b=top+fs*(1+1.4*i);
+    ox.strokeText(t,x0,b);ox.fillText(t,x0,b);
+    return{x0,x1:x0+w,y0:b-fs,y1:b+fs*.6,b};
+  });
+}
+
+/* ==========================================================================
+   8. HANDWRITING ANIMATION
+   Thin the rendered text to a centre line, walk a pen along it, and reveal
+   the glyphs under the pen.
+   ========================================================================== */
+let written=false,writing=false,wst=0,fadeAt=0,textA=0,paths=[];
+
+function thin(a,w,h){   // Zhang-Suen thinning
+  let ch=true;
+  while(ch){ch=false;for(let pass=0;pass<2;pass++){const del=[];
+    for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){
+      const i=y*w+x;if(!a[i])continue;
+      const p2=a[i-w],p3=a[i-w+1],p4=a[i+1],p5=a[i+w+1],p6=a[i+w],p7=a[i+w-1],p8=a[i-1],p9=a[i-w-1],B=p2+p3+p4+p5+p6+p7+p8+p9;
+      if(B<2||B>6)continue;
+      const A=(!p2&&p3?1:0)+(!p3&&p4?1:0)+(!p4&&p5?1:0)+(!p5&&p6?1:0)+(!p6&&p7?1:0)+(!p7&&p8?1:0)+(!p8&&p9?1:0)+(!p9&&p2?1:0);
+      if(A!==1)continue;
+      if(pass===0){if(p2*p4*p6||p4*p6*p8)continue}else{if(p2*p4*p8||p2*p6*p8)continue}
+      del.push(i);
+    }
+    for(const i of del)a[i]=0;if(del.length)ch=true}}
+}
+function trace(L){      // ordered list of points along the pen path for one line of text
+  const pad=Math.ceil(fs*.15),x0=Math.max(0,Math.floor(L.x0-pad)),x1=Math.min(W,Math.ceil(L.x1+pad)),y0=Math.max(0,Math.floor(L.y0)),y1=Math.min(H,Math.ceil(L.y1)),w=x1-x0,h=y1-y0;
+  if(w<=0||h<=0)return [];
+  const id=ox.getImageData(x0,y0,w,h).data,a=new Uint8Array(w*h);
+  for(let k=0;k<a.length;k++)a[k]=id[k*4+3]>110?1:0;
+  for(let x=0;x<w;x++)a[x]=a[(h-1)*w+x]=0;for(let y=0;y<h;y++)a[y*w]=a[y*w+w-1]=0;
+  thin(a,w,h);
+  const pts=[];for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++)if(a[y*w+x])pts.push([x,y]);
+  pts.sort((p,q)=>p[0]-q[0]||p[1]-q[1]);
+  const vis=new Uint8Array(w*h),out=[];let si=0,cur=null;
+  for(;;){
+    if(!cur){while(si<pts.length&&vis[pts[si][1]*w+pts[si][0]])si++;if(si>=pts.length)break;cur=pts[si]}
+    vis[cur[1]*w+cur[0]]=1;out.push([cur[0]+x0,cur[1]+y0]);
+    let nx=null,bd=1e9;
+    for(let r=1;r<=3&&!nx;r++)for(let dy=-r;dy<=r;dy++)for(let dX=-r;dX<=r;dX++){
+      if(Math.max(Math.abs(dX),Math.abs(dy))!==r)continue;
+      const X=cur[0]+dX,Y=cur[1]+dy;if(X<0||Y<0||X>=w||Y>=h)continue;
+      const k=Y*w+X;
+      if(a[k]&&!vis[k]){const d=dX*dX+dy*dy-dX*.01;if(d<bd){bd=d;nx=[X,Y]}}
+    }
+    cur=nx;
+  }
+  return out;
+}
 function startWrite(){
- if(RM){tx.drawImage(TF,0,0);written=true;textA=.6;fadeAt=0;dirty=1;return}
- let t0=0;paths=lines.map(L=>{const pts=trace(L),dur=cl(pts.length*1.3,1500,2800),p={pts,t0,dur,i:0,d:0};t0+=dur+300;return p});
- wst=performance.now();writing=true;textA=1}
-function stepWrite(now){const t=now-wst;let done=true;
- for(const p of paths){const n=p.pts.length;
-  if(!n){if(t>=p.t0&&!p.d){tx.drawImage(TF,0,0);p.d=1}else if(!p.d)done=false;continue}
-  const k=Math.floor(cl((t-p.t0)/p.dur,0,1)*n);
-  if(k>p.i){const r=fs*.1;tx.save();tx.beginPath();for(let j=p.i;j<k;j++){const q=p.pts[j];tx.moveTo(q[0]+r,q[1]);tx.arc(q[0],q[1],r,0,6.283)}tx.clip();tx.drawImage(TF,0,0);tx.restore();
-   const q=p.pts[k-1];stamp(q[0],q[1],fs*.17);p.i=k}
-  if(p.i<n)done=false}
- if(done){writing=false;written=true;fadeAt=now+1200;tx.drawImage(TF,0,0);
-  if(!RM)for(let k=0;k<5;k++)setTimeout(()=>{const L=lines[1];spawn(L.x0+rnd()*(L.x1-L.x0),L.b)},1800+k*900)}}
-function render(now){
- m.globalCompositeOperation='source-over';m.drawImage(FG,0,0);
- bx.clearRect(0,0,W,H);bx.drawImage(SK,0,0);bx.globalAlpha=textA;bx.drawImage(TX,0,0);bx.globalAlpha=1;
- px.globalCompositeOperation='source-over';px.clearRect(0,0,W,H);px.drawImage(SH,0,0);px.globalCompositeOperation='destination-in';px.drawImage(CB,0,0);
- m.drawImage(TP,0,0);
- m.save();m.globalCompositeOperation='lighter';m.globalAlpha=.4;m.shadowColor='rgba(255,255,255,.85)';m.shadowBlur=18*Q;m.shadowOffsetX=W+200;m.drawImage(CB,-W-200,0);m.restore();
- ttx.globalCompositeOperation='source-over';ttx.clearRect(0,0,W,H);ttx.drawImage(CB,0,0);ttx.globalCompositeOperation='source-in';ttx.fillStyle='#fff';ttx.fillRect(0,0,W,H);ttx.globalCompositeOperation='source-atop';ttx.drawImage(DK,0,0);m.globalAlpha=.75;m.drawImage(TT,0,0);m.globalAlpha=1
- for(const d of drips){const a=d.stop?cl(1-(now-d.stop)/2500,0,1):1;if(a<=0)continue;m.fillStyle=`rgba(255,255,255,${.55*a})`;m.beginPath();m.arc(d.x,d.y,3.6*Q,0,6.283);m.fill()}}
-let last=performance.now(),fadeAcc=0;
-function frame(now){const dt=Math.min(64,now-last);last=now;
- if(writing)stepWrite(now);
- stepDrips(now,dt);
- if(now-lastInk<4300){fadeAcc+=dt;while(fadeAcc>=50){fadeAcc-=50;kx.save();kx.globalCompositeOperation='destination-out';kx.fillStyle='rgba(0,0,0,.08)';kx.fillRect(0,0,W,H);kx.restore()}}
- if(written&&!RM){const f=cl((now-fadeAt)/7000,0,1);textA=1-.4*(f*f*(3-2*f))}
- if(dirty||writing||drips.length||now-lastInk<4300||(written&&now<fadeAt+7100)){render(now);dirty=0}
- requestAnimationFrame(frame)}
-// input
-let down=false,lx=0,ly=0,acc=0;
-const pt=e=>[e.clientX*Q,e.clientY*Q];
-const skip=e=>e.target.closest&&e.target.closest('a,button,input,label');
-document.addEventListener('pointerdown',e=>{if(skip(e))return;down=true;[lx,ly]=pt(e);seg(lx,ly,lx+.01,ly);document.body.classList.add('drawn')});
-document.addEventListener('pointermove',e=>{if(!down)return;const[x,y]=pt(e);seg(lx,ly,x,y);acc+=Math.hypot(x-lx,y-ly);
- if(acc>70*Q){acc=0;if(rnd()<.55)spawn(x+(rnd()-.5)*12*Q,y+10*Q)}lx=x;ly=y});
+  if(!lines.length)return;
+  if(RM){tx.drawImage(TF,0,0);written=true;textA=.6;fadeAt=0;dirty=1;return}
+  let t0=0;
+  paths=lines.map(L=>{const pts=trace(L),dur=cl(pts.length*1.3,1500,2800),p={pts,t0,dur,i:0,d:0};t0+=dur+300;return p});
+  wst=performance.now();writing=true;textA=1;
+}
+function stepWrite(now){
+  const t=now-wst;let done=true;
+  for(const p of paths){
+    const n=p.pts.length;
+    if(!n){if(t>=p.t0&&!p.d){tx.drawImage(TF,0,0);p.d=1}else if(!p.d)done=false;continue}
+    const k=Math.floor(cl((t-p.t0)/p.dur,0,1)*n);
+    if(k>p.i){
+      const r=fs*.1;
+      tx.save();tx.beginPath();
+      for(let j=p.i;j<k;j++){const q=p.pts[j];tx.moveTo(q[0]+r,q[1]);tx.arc(q[0],q[1],r,0,6.283)}
+      tx.clip();tx.drawImage(TF,0,0);tx.restore();
+      const q=p.pts[k-1];stamp(q[0],q[1],fs*.17);p.i=k;      // glow under the pen
+    }
+    if(p.i<n)done=false;
+  }
+  if(done){
+    writing=false;written=true;fadeAt=now+1200;tx.drawImage(TF,0,0);
+    if(!RM)for(let k=0;k<5;k++)setTimeout(()=>{
+      const L=lines[lines.length-1];if(!L)return;
+      spawn(L.x0+rnd()*(L.x1-L.x0),L.b);                        // a few drips off the last line
+    },1800+k*900);
+  }
+}
+
+/* ==========================================================================
+   9. FINGER DRAWING + DRIPS  (lives on the glass, so it stays put while scrolling)
+   ========================================================================== */
+// Everything drawn on the glass (strokes, drips, the title) lives in PAGE coordinates,
+// so it all scrolls with the site.
+const drips=[];
+function stamp(x,y,r){
+  const g=kx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,'rgba(255,255,255,.85)');g.addColorStop(1,'rgba(255,255,255,0)');
+  kx.fillStyle=g;kx.fillRect(x-r,y-r,r*2,r*2);lastInk=performance.now();
+}
+function seg(x1,y1,x2,y2){
+  kx.save();kx.lineCap=kx.lineJoin='round';kx.lineWidth=24*Q;kx.strokeStyle='#fff';kx.shadowColor='#fff';kx.shadowBlur=12*Q;
+  kx.beginPath();kx.moveTo(x1,y1);kx.lineTo(x2,y2);kx.stroke();kx.restore();lastInk=performance.now();
+}
+function spawn(x,y){
+  if(RM||drips.length>28)return;
+  drips.push({x,y,py:y,v:(14+rnd()*26)*Q,max:(40+rnd()*110)*Q,d:0,stop:0});lastInk=performance.now();
+}
+function stepDrips(now,dt){
+  for(let i=drips.length-1;i>=0;i--){
+    const d=drips[i];
+    if(!d.stop){
+      const dy=d.v*dt/1000*(1+d.d/(d.max*2));d.y+=dy;d.d+=dy;
+      kx.save();kx.lineCap='round';kx.strokeStyle='#fff';kx.lineWidth=4*Q;kx.beginPath();kx.moveTo(d.x,d.py);kx.lineTo(d.x,d.y);kx.stroke();kx.restore();
+      d.py=d.y;lastInk=now;
+      if(d.d>d.max)d.stop=now;
+    }else if(now-d.stop>3000)drips.splice(i,1);
+  }
+}
+
+let down=false,lx=0,ly=0,acc=0,dist=0;
+const pt=e=>[e.clientX*Q,e.clientY*Q+sy];   // screen position -> page position
+const skip=e=>e.target.closest&&e.target.closest('.menu,.time');   // don't start a stroke on the menu / time controls
+
+document.addEventListener('pointerdown',e=>{
+  if(skip(e)||e.button>0)return;                  // primary button / touch / pen only
+  down=true;acc=dist=0;[lx,ly]=pt(e);seg(lx,ly,lx+.01,ly);
+  document.body.classList.add('drawn');
+});
+document.addEventListener('pointermove',e=>{
+  if(!down)return;
+  if(!e.buttons){down=false;return}               // button released outside the window: stop drawing
+  const evs=(e.getCoalescedEvents&&e.getCoalescedEvents())||[];
+  for(const ev of(evs.length?evs:[e])){           // coalesced events = smoother strokes on fast drags
+    const[x,y]=pt(ev),d=Math.hypot(x-lx,y-ly);
+    seg(lx,ly,x,y);acc+=d;dist+=d;
+    if(acc>70*Q){acc=0;if(rnd()<.55)spawn(x+(rnd()-.5)*12*Q,y+10*Q)}
+    lx=x;ly=y;
+  }
+});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,()=>{down=false}));
-// time controls
+addEventListener('blur',()=>{down=false});
+
+// a drag that started on a work card shouldn't also count as a click on it
+document.addEventListener('click',e=>{
+  if(dist>8*Q){e.preventDefault();e.stopPropagation()}
+  dist=0;
+},true);
+
+/* ==========================================================================
+   10. RENDER  (one composite per frame)
+   ========================================================================== */
+function render(now){
+  const so=sceneOff();                                   // how far down the tall background we are
+  m.globalCompositeOperation='source-over';m.drawImage(FG,0,so,W,H,0,0,W,H);
+
+  // wiped areas = finger strokes + the title; both are page-tall, so they scroll with the page
+  bx.clearRect(0,0,W,H);bx.drawImage(SK,0,-sy);
+  if(textA>0){bx.globalAlpha=textA;bx.drawImage(TX,0,-sy);bx.globalAlpha=1}
+
+  // reveal the sharp scene through the wipe
+  px.globalCompositeOperation='source-over';px.clearRect(0,0,W,H);px.drawImage(SH,0,so,W,H,0,0,W,H);
+  px.globalCompositeOperation='destination-in';px.drawImage(CB,0,0);
+  m.drawImage(TP,0,0);
+
+  // soft glow around the wipe
+  m.save();m.globalCompositeOperation='lighter';m.globalAlpha=.4;m.shadowColor='rgba(255,255,255,.85)';m.shadowBlur=18*Q;m.shadowOffsetX=W+200;
+  m.drawImage(CB,-W-200,0);m.restore();
+
+  // ink tint
+  ttx.globalCompositeOperation='source-over';ttx.clearRect(0,0,W,H);ttx.drawImage(CB,0,0);
+  ttx.globalCompositeOperation='source-in';ttx.fillStyle='#fff';ttx.fillRect(0,0,W,H);
+  ttx.globalCompositeOperation='source-atop';ttx.drawImage(DK,0,so,W,H,0,0,W,H);
+  m.globalAlpha=.75;m.drawImage(TT,0,0);m.globalAlpha=1;
+
+  // drip heads
+  for(const d of drips){
+    const a=d.stop?cl(1-(now-d.stop)/2500,0,1):1;if(a<=0)continue;
+    m.fillStyle=`rgba(255,255,255,${.55*a})`;m.beginPath();m.arc(d.x,d.y-sy,3.6*Q,0,6.283);m.fill();
+  }
+}
+
+/* ==========================================================================
+   11. SMOOTH SCROLL
+   The browser still does the real scrolling (wheel, touch, keyboard, scrollbar).
+   We ease a visual offset toward it and apply that one number to both the page
+   content and the canvas title, so everything moves together, perfectly in sync.
+   ========================================================================== */
+function measurePage(){
+  document.body.style.height=scroller.offsetHeight+'px';
+  const de=document.documentElement;
+  maxY=Math.max(1,de.scrollHeight-de.clientHeight);
+  PHcss=scroller.offsetHeight;
+}
+function stepScroll(dt){
+  const target=window.scrollY,ms=RM?0:(COARSE?CFG.smoothMsTouch:CFG.smoothMs);
+  const prev=vy;
+  vy+=(target-vy)*(ms?1-Math.exp(-dt/ms):1);
+  if(Math.abs(target-vy)<.08)vy=target;
+  if(vy===prev)return false;
+  scroller.style.transform=`translate3d(0,${-vy}px,0)`;
+  sy=vy*Q;
+  return true;
+}
+function scrollToPage(top){scrollTo({top:Math.max(0,top),behavior:RM?'auto':'smooth'})}
+
+// menu links
+document.addEventListener('click',e=>{
+  const a=e.target.closest&&e.target.closest('a[href^="#"]');if(!a)return;
+  e.preventDefault();
+  const id=a.dataset.scroll,el=id&&$(id);
+  if(el)scrollToPage(id==='#top'?0:pageTop(el)-CFG.anchorOffset);
+});
+// keyboard users tabbing to something off-screen: bring it into view
+document.addEventListener('focusin',e=>{
+  const el=e.target;if(!scroller.contains(el))return;
+  const r=el.getBoundingClientRect();
+  if(r.top<90||r.bottom>cssH-20)scrollToPage(pageTop(el)-cssH*.3);
+});
+
+/* ==========================================================================
+   12. TIME CONTROLS  (slider + Live button)
+   ========================================================================== */
 $('#t').addEventListener('input',e=>{live=false;$('#live').classList.add('off');prevH=e.target.value/60;build(prevH)});
 $('#live').addEventListener('click',()=>{live=true;$('#live').classList.remove('off');build(ctHours())});
 setInterval(()=>{if(live)build(ctHours())},20000);
-const ADJ=['human centered','coffee loving','music obsessed','mildly perfectionistic','animal loving','creatively curious'],TAIL=['based in st. louis and san diego','who has too many tabs open','who loooves to sing','who takes the slower route'];
+
+/* ==========================================================================
+   13. ROLLING WORDS
+   ========================================================================== */
+const ADJ=['human centered','coffee loving','music obsessed','mildly perfectionistic','animal loving','creatively curious'],
+      TAIL=['based in st. louis and san diego','who has too many tabs open','who loooves to sing','who always takes the scenic route'];
 const tw=n=>{const r=document.createRange();r.selectNodeContents(n);return Math.ceil(r.getBoundingClientRect().width)};
-function roller(el,list){let i=0;return{fix(){const w=el.querySelector('.w:not(.out)');if(w)el.style.width=tw(w)+'px'},
- next(){i=(i+1)%list.length;const old=el.querySelector('.w:not(.out)'),n=document.createElement('span');n.className='w';n.textContent=list[i];el.appendChild(n);el.style.width=tw(n)+'px';if(old){old.classList.add('out');setTimeout(()=>old.remove(),950)}}}}
-const R=[roller($('#adj'),ADJ),roller($('#tail'),TAIL)];let ri=0;
-function fixAdj(){R.forEach(r=>r.fix())}
+function roller(el,list){
+  let i=0;
+  return{
+    fix(){const w=el.querySelector('.w:not(.out)');if(w)el.style.width=tw(w)+'px'},
+    next(){
+      i=(i+1)%list.length;
+      const old=el.querySelector('.w:not(.out)'),n=document.createElement('span');
+      n.className='w';n.textContent=list[i];el.appendChild(n);el.style.width=tw(n)+'px';
+      if(old){old.classList.add('out');setTimeout(()=>old.remove(),950)}
+    }
+  };
+}
+let R=[],ri=0;
+const fixAdj=()=>R.forEach(r=>r.fix());
+
+/* ==========================================================================
+   14. FRAME LOOP + SIZING + START-UP
+   ========================================================================== */
+let last=performance.now(),fadeAcc=0,wasMoving=false,inkLive=false;
+function frame(now){
+  const dt=Math.min(64,now-last);last=now;
+  if(!W||!H){requestAnimationFrame(frame);return}   // window has no size yet (hidden tab, etc.)
+
+  // scroll → page + title offset + scene
+  const moving=stepScroll(dt);
+  if(moving){dirty=1;if(now-lastAdapt>100)adaptInk()}   // scrolling only pans the tall background: no redraw needed
+  else if(wasMoving)adaptInk();                          // just stopped: settle the text colours
+  wasMoving=moving;
+
+  if(writing)stepWrite(now);
+  stepDrips(now,dt);
+
+  // strokes slowly fade
+  if(now-lastInk<4300){
+    inkLive=true;fadeAcc+=dt;
+    // bigger, less frequent steps than before: tiny steps round to nothing at low alpha and leave a faint blocky ghost behind
+    while(fadeAcc>=100){fadeAcc-=100;kx.save();kx.globalCompositeOperation='destination-out';kx.fillStyle='rgba(0,0,0,.17)';kx.fillRect(0,0,SK.width,SK.height);kx.restore()}
+  }else if(inkLive){
+    // repeated fading can't reach zero (8-bit rounding leaves a faint, blocky ghost), so finish with a clean wipe
+    kx.clearRect(0,0,SK.width,SK.height);inkLive=false;fadeAcc=0;dirty=1;
+  }
+  // title settles to 60% after it's written
+  if(written&&!RM){const f=cl((now-fadeAt)/7000,0,1);textA=1-.4*(f*f*(3-2*f))}
+
+  if(dirty||writing||drips.length||now-lastInk<4300||(written&&now<fadeAt+7100)){render(now);dirty=0}
+  requestAnimationFrame(frame);
+}
+
+// size the page-tall layers (tall background + ink). Returns true if the background changed size.
+function smooth(list){list.forEach(c=>{c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high'})}
+function fitScene(){
+  // ink layer: always as tall as the page, never shrinks, keeps what's already drawn
+  const ph=Math.max(H,Math.ceil(PHcss*Q));
+  if(SK.width!==W||SK.height<ph){
+    let tmp=null;
+    if(SK.width===W&&SK.height){tmp=mk();tmp.width=W;tmp.height=SK.height;tmp.getContext('2d').drawImage(SK,0,0)}
+    SK.width=W;SK.height=ph;if(tmp)kx.drawImage(tmp,0,0);
+  }
+  // background: one screen + the scroll distance (scaled by parallax)
+  const sc=Math.max(H,Math.round(H+Math.max(0,PHcss-cssH)*Q*CFG.parallax));
+  if(sc===SC&&SH.width===W)return false;
+  SC=sc;
+  SH.width=FG.width=DK.width=W;SH.height=FG.height=DK.height=SC;
+  S.width=Math.ceil(W/3);S.height=Math.ceil(SC/3);
+  Fs.width=FW=Math.ceil(W/32);Fs.height=FH=Math.ceil(SC/32);
+  Md.width=Math.ceil(W/12);Md.height=Math.ceil(SC/12);
+  Mm.width=Math.ceil(W/4);Mm.height=Math.ceil(SC/4);
+  DS.width=FW;DS.height=FH;
+  smooth([hx,gx,fx,dx,mx,dkx]);
+  return true;
+}
+function resize(){
+  cssW=document.documentElement.clientWidth;cssH=innerHeight;
+  if(!cssW||!cssH)return;                            // hidden / minimised: nothing to size
+  W=Math.round(cssW*Q);H=Math.round(cssH*Q);
+  [cv,CB,TP,TX,TF,TT].forEach(c=>{c.width=W;c.height=H});
+  smooth([m,px,bx]);
+  drips.length=0;                                    // drips belong to the old layout
+  layoutTitle();measurePage();
+  if(written)tx.drawImage(TF,0,0);
+  SC=0;fitScene();                                   // new viewport size: rebuild the tall layers
+  build(curH());
+}
+// the page got taller/shorter (fonts loaded, text wrapped): stretch the background to match
+function onPageResize(){measurePage();if(fitScene())build(curH())}
+
+slot=$('.title-slot');scroller=$('#scroller');adaptEls=$$('[data-adapt]');
+R=[roller($('#adj'),ADJ),roller($('#tail'),TAIL)];
+vy=window.scrollY;                                   // start where the browser restored us
+scroller.style.transform=`translate3d(0,${-vy}px,0)`;
 fixAdj();
-// one timer alternates between the two, so they never change at the same moment
-setInterval(()=>{R[ri].next();ri^=1},2600);
+setInterval(()=>{R[ri].next();ri^=1},2600);          // one timer alternates the two, so they never change together
 addEventListener('resize',fixAdj);
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(resize,150)});
-resize();requestAnimationFrame(frame);
-Promise.race([document.fonts.load('64px "Beth Ellen"'),new Promise(r=>setTimeout(r,1800))]).catch(()=>{}).then(()=>{fixAdj();layoutText();build(curH());setTimeout(startWrite,500)});
+if('ResizeObserver'in window)new ResizeObserver(onPageResize).observe(scroller);
+
+resize();
+requestAnimationFrame(frame);
+
+// once the handwriting font is ready (or after 1.8s), lay out the title and start writing it
+Promise.race([document.fonts.load('64px "Beth Ellen"'),new Promise(r=>setTimeout(r,1800))])
+  .catch(()=>{})
+  .then(()=>{fixAdj();layoutTitle();measurePage();fitScene();build(curH());setTimeout(startWrite,500)});
 })();
 </script>
 </body>
