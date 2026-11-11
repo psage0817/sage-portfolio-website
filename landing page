@@ -6,20 +6,53 @@
 <title>Sage Park</title>
 <link href="https://fonts.googleapis.com/css2?family=Beth+Ellen&display=swap" rel="stylesheet">
 <style>
-:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--ink:#10244a;--glow:rgba(255,255,255,.55);--sky:#0b1634}
-
-html{background:var(--sky);scroll-padding-top:env(safe-area-inset-top,0px)}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  --ink:#10244a;--glow:rgba(255,255,255,.55);--sky:#0b1634}
+html{background:var(--sky);
+  scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;font-family:'Alte Haas Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--ink);transition:color 1s}
 #fog{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0}
 main{position:relative;z-index:1}
-.hero{min-height:calc(100svh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:.6rem;padding:0 1.5rem 9vh;box-sizing:border-box;touch-action:none;user-select:none;-webkit-user-select:none;text-align:center}
+.hero{min-height:calc(100svh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  align-items:center;
+  gap:.6rem;
+  padding:0 1.5rem 9vh;
+  box-sizing:border-box;
+  touch-action:none;
+  user-select:none;-webkit-user-select:none;text-align:center}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.sub{margin:0;font-size:clamp(1.1rem,2.6vw,1.45rem);font-weight:700;text-shadow:0 0 8px var(--glow),0 0 22px var(--glow);max-width:34ch;line-height:1.25}
+.sub{margin:0;font-size:clamp(1.1rem,2.6vw,1.45rem);
+  font-weight:700;text-shadow:0 0 8px var(--glow),0 0 22px var(--glow);max-width:100%;line-height:1.25}
 .hint{margin:0;font-size:.95rem;opacity:.85;text-shadow:0 0 8px var(--glow),0 0 20px var(--glow);transition:opacity .8s}
 .drawn .hint{opacity:0}
+.ln{display:block}
+.adj{--px:.7em;--py:.35em;
+  display:inline-block;position:relative;
+  vertical-align:bottom;
+  white-space:nowrap;
+  box-sizing:content-box;
+  padding:var(--py) var(--px);
+  margin:calc(var(--py)*-1) calc(var(--px)*-1);
+  transition:width .9s cubic-bezier(.65,0,.35,1);
+ -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%),linear-gradient(to right,transparent 0,#000 var(--px),#000 calc(100% - var(--px)),transparent 100%);
+ mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%),linear-gradient(to right,transparent 0,#000 var(--px),#000 calc(100% - var(--px)),transparent 100%);
+ -webkit-mask-composite:source-in;mask-composite:intersect}
+.adj .w{position:absolute;left:var(--px);right:var(--px);top:var(--py);text-align:center;white-space:nowrap;animation:wi .9s cubic-bezier(.65,0,.35,1) both}
+.adj .w.out{animation:wo .9s cubic-bezier(.65,0,.35,1) both}
+.adj{--px:4em;height:1.25em;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
+@keyframes wi{from{transform:translateY(110%)}to{transform:none}}
+@keyframes wo{from{transform:none}to{transform:translateY(-110%)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.adj .w.out{display:none}}
 .time{position:fixed;z-index:3;top:calc(env(safe-area-inset-top,0px) + 12px);right:12px;display:flex;align-items:center;gap:.5rem;padding:.35rem .7rem;border-radius:999px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);font-size:.95rem;font-weight:700;color:var(--pink,#10244a);transition:color 1s}
 .time input{width:90px;accent-color:currentColor}
-.time button{font:inherit;color:inherit;background:none;border:1.5px solid currentColor;border-radius:999px;padding:0 .6rem;cursor:pointer}
+.time button{font:inherit;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;display:inline-flex;align-items:center;gap:.4rem;color:#d4182b;background:rgba(255,255,255,.92);border:1.5px solid #d4182b;border-radius:999px;padding:.1rem .65rem .1rem .5rem;cursor:pointer}
+.time button::before{content:"";width:.5rem;height:.5rem;border-radius:50%;background:#e11d2e;animation:blink 1.4s ease-in-out infinite}
+.time button.off{color:#6b7280;border-color:#6b7280}.time button.off::before{background:#6b7280;animation:none}
+@keyframes blink{0%,45%{opacity:1}60%,100%{opacity:.15}}
 .time button:focus-visible,.time input:focus-visible{outline:2px solid currentColor;outline-offset:3px}
 </style>
 </head>
@@ -28,7 +61,7 @@ main{position:relative;z-index:1}
 <main>
   <section class="hero">
     <h1 class="sr">hi, i’m sage park</h1>
-    <p class="sub">i’m a human centered designer based in st. louis and san diego.</p>
+    <p class="sub"><span class="ln">i’m a <span class="adj" id="adj"><span class="w">human centered</span></span> designer</span><span class="ln"><span class="adj" id="tail"><span class="w">based in st. louis and san diego</span></span>.</span></p>
     <p class="hint">draw on the window</p>
   </section>
 </main>
@@ -110,7 +143,7 @@ function build(h){
  dirty=1}
 function layoutText(){
  fs=Math.min(cssW*.15,cssH*.19,190)*Q;ox.clearRect(0,0,W,H);
- ox.font=`${fs}px "Beth Ellen",cursive`;ox.textBaseline='alphabetic';ox.lineJoin='round';ox.fillStyle=ox.strokeStyle='#fff';ox.lineWidth=fs*.025;
+ ox.font=`${fs}px "Beth Ellen",cursive`;ox.textBaseline='alphabetic';ox.lineJoin='round';ox.fillStyle=ox.strokeStyle='#fff';ox.lineWidth=fs*.012;
  const T=['hi, i\u2019m','sage park'],x0=cssW*.09*Q,b1=H*.32;
  lines=T.map((t,i)=>{const b=b1+i*fs*1.4,w=ox.measureText(t).width;ox.strokeText(t,x0,b);ox.fillText(t,x0,b);return{x0,x1:x0+w,y0:b-fs*(i?.8:1),y1:b+fs*.6,b,px:x0-6*Q}})}
 let written=false,writing=false,wst=0,fadeAt=0,textA=0;
@@ -194,12 +227,22 @@ document.addEventListener('pointermove',e=>{if(!down)return;const[x,y]=pt(e);seg
  if(acc>70*Q){acc=0;if(rnd()<.55)spawn(x+(rnd()-.5)*12*Q,y+10*Q)}lx=x;ly=y});
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,()=>{down=false}));
 // time controls
-$('#t').addEventListener('input',e=>{live=false;prevH=e.target.value/60;build(prevH)});
-$('#live').addEventListener('click',()=>{live=true;build(ctHours())});
+$('#t').addEventListener('input',e=>{live=false;$('#live').classList.add('off');prevH=e.target.value/60;build(prevH)});
+$('#live').addEventListener('click',()=>{live=true;$('#live').classList.remove('off');build(ctHours())});
 setInterval(()=>{if(live)build(ctHours())},20000);
+const ADJ=['human centered','coffee loving','music obsessed','mildly perfectionistic','animal loving','creatively curious'],TAIL=['based in st. louis and san diego','who has too many tabs open','who loooves to sing','who takes the slower route'];
+const tw=n=>{const r=document.createRange();r.selectNodeContents(n);return Math.ceil(r.getBoundingClientRect().width)};
+function roller(el,list){let i=0;return{fix(){const w=el.querySelector('.w:not(.out)');if(w)el.style.width=tw(w)+'px'},
+ next(){i=(i+1)%list.length;const old=el.querySelector('.w:not(.out)'),n=document.createElement('span');n.className='w';n.textContent=list[i];el.appendChild(n);el.style.width=tw(n)+'px';if(old){old.classList.add('out');setTimeout(()=>old.remove(),950)}}}}
+const R=[roller($('#adj'),ADJ),roller($('#tail'),TAIL)];let ri=0;
+function fixAdj(){R.forEach(r=>r.fix())}
+fixAdj();
+// one timer alternates between the two, so they never change at the same moment
+setInterval(()=>{R[ri].next();ri^=1},2600);
+addEventListener('resize',fixAdj);
 let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(resize,150)});
 resize();requestAnimationFrame(frame);
-Promise.race([document.fonts.load('64px "Beth Ellen"'),new Promise(r=>setTimeout(r,1800))]).catch(()=>{}).then(()=>{layoutText();build(curH());setTimeout(startWrite,500)});
+Promise.race([document.fonts.load('64px "Beth Ellen"'),new Promise(r=>setTimeout(r,1800))]).catch(()=>{}).then(()=>{fixAdj();layoutText();build(curH());setTimeout(startWrite,500)});
 })();
 </script>
 </body>
