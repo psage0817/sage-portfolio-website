@@ -92,7 +92,7 @@ a{color:inherit;text-decoration:none}
 
 .sub,.hint{
   margin:0;max-width:100%;
-  font-size:var(--fs-sub);font-weight:600;line-height:1.3;
+  font-size:var(--fs-sub);font-weight:400;line-height:1.3;
   color:var(--ink);
   /* tiny halo only; set CFG.halo = 0 in the script to remove it entirely */
   text-shadow:0 0 5px var(--halo);
@@ -100,7 +100,12 @@ a{color:inherit;text-decoration:none}
 }
 .sub{margin-top:clamp(.4rem, 1vh, .9rem);font-weight:400}   /* the fixed words are regular weight... */
 .hint{margin-top:clamp(1.6rem, 4.6vh, 3rem)}
-.drawn .hint{opacity:0}
+.drawn .hint:not(.hint-sub),.breathed .hint-sub{opacity:0}    /* each hint fades once you've tried what it says */
+
+/* second hint: quieter and smaller, with the key drawn as a little key cap */
+.hint-sub{margin-top:clamp(.35rem, .9vh, .7rem);font-size:var(--fs-label);font-weight:400}
+.hint-sub kbd{font:inherit;padding:.1em .8em .14em;border-radius:999px;background:rgba(42, 39, 69, 0.6);color:#a9c7ce}
+@media (hover:none){.hint-sub{display:none}}               /* touch screens have no shift key */
 
 /* sentence breaks into two lines on narrow screens, stays on one line on wide ones */
 .ln{display:inline}
@@ -128,7 +133,7 @@ a{color:inherit;text-decoration:none}
 /* ==========================================================================
    5. WORKS GRID
    ========================================================================== */
-.works{padding:clamp(70px, 13vh, 150px) var(--pad-x) calc(clamp(90px, 22vh, 240px) + env(safe-area-inset-bottom,0px))}
+.works{padding:clamp(40px, calc(13vh - 36px), 115px) var(--pad-x) calc(clamp(90px, 22vh, 240px) + env(safe-area-inset-bottom,0px))}
 .works-grid{
   display:grid;
   grid-template-columns:repeat(3,minmax(0,1fr));
@@ -202,7 +207,8 @@ a{color:inherit;text-decoration:none}
       <h1 class="sr">hi, i’m sage park</h1>
       <div class="title-slot" aria-hidden="true"></div>
       <p class="sub" data-adapt><span class="ln">i’m a <span class="adj" id="adj"><span class="w">human centered</span></span> designer</span> <span class="ln"><span class="adj" id="tail"><span class="w">based in st. louis and san diego</span></span>.</span></p>
-      <p class="hint" data-adapt>draw on the window!</p>
+      <p class="hint" data-adapt data-soft>draw on the window!</p>
+      <p class="hint hint-sub" data-adapt data-soft>hold <kbd>shift</kbd> to fog it back up</p>
     </section>
 
     <section class="works" id="work" aria-label="Selected work">
@@ -276,7 +282,10 @@ const CFG={
   parallax:1,               // background scroll speed vs the page: 1 = moves with the page, <1 = slower (more depth)
   frost:.26,                // glass frost level: 0 = clear, ~.6 = very milky
   writeMs:3800,             // how long each line of the title takes to write (ms)
+  breathSize:90,            // size of the fog patch when you hold Shift and move the mouse (px)
+  breathMs:5000,            // how long the fog takes to clear again (ms)
   titleTint:.6,             // how strongly the title is tinted darker (day) / lighter (night) than the glass behind it
+  hintContrast:4,         // hints are tinted toward the background as far as this contrast allows (higher = darker/more readable)
   halo:.22,                 // text halo strength (0 = none). Contrast does most of the work
   inkDark:'#0a1f4a',        // text colour on light backgrounds
   inkLight:'#eef3ff',       // text colour on dark backgrounds
@@ -361,7 +370,7 @@ const CLOUDS=Array.from({length:6},(_,i)=>({x:i/6+rnd()*.1,y:.08+rnd()*.35,s:.1+
      FG      frosted glass                     SK   finger strokes + drips
      CB      strokes + title (the "wipe" mask) TP   sharp scene cut by CB
      TF      title outline (page coords)       TX   title as written so far
-     Mm      extra blur step
+     Mm      extra blur step          BR   breath fog (Shift + move), fades away
      SH, FG, DK and the blur steps are TALL (the whole page); SK (ink) is also page-tall.
      TT      ink tint                          DK/DS  light/dark tint map
    ========================================================================== */
@@ -379,6 +388,7 @@ const S=mk(),sx=S.getContext('2d'),
   TX=mk(),tx=TX.getContext('2d'),
   TF=mk(),ox=TF.getContext('2d'),
   TT=mk(),ttx=TT.getContext('2d'),
+  BR=mk(),brx=BR.getContext('2d'),
   DK=mk(),dkx=DK.getContext('2d'),
   DS=mk(),dsx=DS.getContext('2d');
 
@@ -489,6 +499,14 @@ function sampleRect(r){
   for(let yy=y0;yy<y1;yy++)for(let xx=x0;xx<x1;xx++){const i=(yy*FW+xx)*4;R+=FD[i];G+=FD[i+1];B+=FD[i+2];n++}
   return mix([R/n,G/n,B/n],veilCol,veilA);
 }
+// lightest version of `ink` that still reads clearly on `bg`: slide the text colour toward the background until contrast hits the target
+function softInk(ink,bg,target){
+  const lb=lum(bg);
+  if(ratio(lum(ink),lb)<target)return ink;
+  let lo=0,hi=1;
+  for(let i=0;i<9;i++){const t=(lo+hi)/2;if(ratio(lum(mix(ink,bg,t)),lb)>=target)lo=t;else hi=t}
+  return mix(ink,bg,lo);
+}
 // re-colour text so it stays readable on whatever is behind it right now
 let adaptEls=[];
 function adaptInk(){
@@ -500,8 +518,8 @@ function adaptInk(){
   for(const el of adaptEls){
     const r=el.getBoundingClientRect();
     if(r.bottom<0||r.top>cssH)continue;                 // off-screen: leave as is
-    const d=pickDark(sampleRect(r),el._d);el._d=d;
-    el.style.setProperty('--ink',d?CFG.inkDark:CFG.inkLight);
+    const bg=sampleRect(r),d=pickDark(bg,el._d);el._d=d;
+    el.style.setProperty('--ink',el.hasAttribute('data-soft')?rgb(softInk(d?INK_D:INK_L,bg,CFG.hintContrast)):(d?CFG.inkDark:CFG.inkLight));
     el.style.setProperty('--halo',rgba(d?[255,255,255]:[5,8,22],CFG.halo));
   }
 }
@@ -836,6 +854,27 @@ document.addEventListener('pointermove',e=>{
 ['pointerup','pointercancel'].forEach(n=>document.addEventListener(n,()=>{down=false}));
 addEventListener('blur',()=>{down=false});
 
+// BREATH: hold Shift and move the mouse over the page to fog the glass up, like breathing on a window.
+// The fog covers up the clear marks (drawings, title) under it, then slowly evaporates and they come back.
+let breathLive=false,lastBreath=0,bfx=0,bfy=0,bfHas=false,breathAcc=0;
+function breathe(e){
+  const x=e.clientX*Q,y=e.clientY*Q,R=CFG.breathSize*Q;
+  if(!bfHas){bfx=x;bfy=y;bfHas=true}
+  const steps=Math.max(1,Math.ceil(Math.hypot(x-bfx,y-bfy)/(R*.25)));
+  for(let i=1;i<=steps;i++){                         // soft puffs along the path so fast moves don't leave gaps
+    const px_=bfx+(x-bfx)*i/steps,py_=bfy+(y-bfy)*i/steps,g=brx.createRadialGradient(px_,py_,0,px_,py_,R);
+    g.addColorStop(0,'rgba(255,255,255,.28)');g.addColorStop(.6,'rgba(255,255,255,.12)');g.addColorStop(1,'rgba(255,255,255,0)');
+    brx.fillStyle=g;brx.fillRect(px_-R,py_-R,R*2,R*2);
+  }
+  bfx=x;bfy=y;breathLive=true;lastBreath=performance.now();dirty=1;
+  document.body.classList.add('breathed');
+}
+document.addEventListener('pointermove',e=>{
+  if(!e.shiftKey||down||e.pointerType==='touch'){bfHas=false;return}
+  breathe(e);
+});
+addEventListener('keyup',e=>{if(e.key==='Shift')bfHas=false});
+
 // a drag that started on a work card shouldn't also count as a click on it
 document.addEventListener('click',e=>{
   if(dist>8*Q){e.preventDefault();e.stopPropagation()}
@@ -852,6 +891,7 @@ function render(now){
   // wiped areas = finger strokes + the title; both are page-tall, so they scroll with the page
   bx.clearRect(0,0,W,H);bx.drawImage(SK,0,-sy);
   if(textA>0){bx.globalAlpha=textA;bx.drawImage(TX,0,-sy);bx.globalAlpha=1}
+  if(breathLive){bx.globalCompositeOperation='destination-out';bx.drawImage(BR,0,0);bx.globalCompositeOperation='source-over'}   // breath fog hides the clear marks
 
   // reveal the sharp scene through the wipe
   px.globalCompositeOperation='source-over';px.clearRect(0,0,W,H);px.drawImage(SH,0,so,WS,HS,0,0,W,H);
@@ -873,6 +913,9 @@ function render(now){
     const a=d.stop?cl(1-(now-d.stop)/2500,0,1):1;if(a<=0)continue;
     m.fillStyle=`rgba(255,255,255,${.55*a})`;m.beginPath();m.arc(d.x,d.y-sy,3.6*Q,0,6.283);m.fill();
   }
+
+  // breath haze on top: the glass looks milkier where you've breathed on it
+  if(breathLive){m.globalAlpha=.42*(1-.45*nightL);m.drawImage(BR,0,0);m.globalAlpha=1}
 }
 
 /* ==========================================================================
@@ -971,10 +1014,17 @@ function frame(now){
     // repeated fading can't reach zero (8-bit rounding leaves a faint, blocky ghost), so finish with a clean wipe
     kx.clearRect(0,0,SK.width,SK.height);inkLive=false;fadeAcc=0;inkY0=1e9;inkY1=-1;dirty=1;
   }
+  // breath fog evaporates
+  if(breathLive){
+    breathAcc+=dt;
+    const a=1-Math.pow(.02,100/CFG.breathMs);          // fade so ~98% is gone after breathMs
+    while(breathAcc>=100){breathAcc-=100;brx.save();brx.globalCompositeOperation='destination-out';brx.fillStyle=`rgba(0,0,0,${a})`;brx.fillRect(0,0,W,H);brx.restore()}
+    if(now-lastBreath>CFG.breathMs+800){brx.clearRect(0,0,W,H);breathLive=false;breathAcc=0;dirty=1}   // clean wipe of the last faint traces
+  }
   // title settles to 60% after it's written
   if(written&&!RM){const f=cl((now-fadeAt)/7000,0,1);textA=1-.2*(f*f*(3-2*f))}
 
-  if(dirty||writing||drips.length||now-lastInk<4300||(written&&now<fadeAt+7100)){render(now);dirty=0}
+  if(dirty||writing||drips.length||breathLive||now-lastInk<4300||(written&&now<fadeAt+7100)){render(now);dirty=0}
   requestAnimationFrame(frame);
 }
 
@@ -1007,7 +1057,7 @@ function resize(){
   // title/ink layers follow the screen's pixel density (capped so huge screens stay fast); the blurry background stays low-res
   Q=cl(Math.min(window.devicePixelRatio||1,Math.sqrt(CFG.maxPixels/(cssW*cssH))),.8,CFG.maxQuality);
   W=Math.round(cssW*Q);H=Math.round(cssH*Q);WS=Math.round(cssW*QS);HS=Math.round(cssH*QS);
-  [cv,CB,TP,TX,TF,TT].forEach(c=>{c.width=W;c.height=H});
+  [cv,CB,TP,TX,TF,TT,BR].forEach(c=>{c.width=W;c.height=H});
   smooth([m,px,bx]);
   drips.length=0;                                    // drips belong to the old layout
   layoutTitle();measurePage();
