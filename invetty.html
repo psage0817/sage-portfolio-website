@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>invetty · Sage Park</title>
+<meta name="description" content="invetty: an app for event goers with celiac disease. A UX design case study by Sage Park, Soha Mehta, Michael Kim and Carrie Shi.">
+<script>document.documentElement.classList.add('js')</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Beth+Ellen&family=DM+Sans:wght@300;400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/site.css">
+<link rel="stylesheet" href="css/case.css">
+</head>
+
+<body>
+
+<canvas id="fog" aria-hidden="true"></canvas>
+
+<nav class="menu" aria-label="Main">
+  <a href="index.html">home</a>
+  <a href="index.html#work" aria-current="page">work</a>
+  <a href="about.html">about</a>
+  <a href="index.html#contact">contact</a>
+</nav>
+
+<div class="time" id="time">
+  <button class="time-sun" type="button" aria-label="Open the time of day slider">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+  </button>
+  <span id="tl">it is … in my timezone</span>
+  <div class="time-extra">
+    <input id="t" type="range" min="0" max="1439" step="1" aria-label="Preview the time of day">
+    <button id="live" type="button">live</button>
+  </div>
+</div>
+<p class="time-hint" id="timehint">
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+  <span>hover to change the sky</span>
+</p>
+
+<!-- the process: follows you down the page and shows where you are -->
+<nav class="rail" id="rail" data-adapt aria-label="Sections of this case study">
+  <p class="ey">the process</p>
+  <a href="#s-intro" data-sec="s-intro">overview</a>
+  <a href="#s-research" data-sec="s-research">research</a>
+  <a href="#s-define" data-sec="s-define">define</a>
+  <a href="#s-ideate" data-sec="s-ideate">ideate</a>
+  <a href="#s-iterate" data-sec="s-iterate">iterate</a>
+  <a href="#s-outcome" data-sec="s-outcome">outcome</a>
+</nav>
+
+<div id="scroller">
+  <main>
+
+    <!-- ================= header ================= -->
+    <header class="case-hero" id="top">
+      <a class="back" href="index.html#work" data-adapt>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>all work
+      </a>
+      <div class="ctags"><span class="ctag">ux design</span><span class="ctag">case study</span></div>
+      <h1 class="case-title" data-adapt>invetty</h1>
+      <p class="case-sub" data-adapt>an app for event goers with celiac disease</p>
+
+      <div class="gl meta-row rv">
+        <div><span class="ey">role</span><span>Team Leader</span></div>
+        <div><span class="ey">timeline</span><span>9/9/26 – 11/11/26</span></div>
+        <div><span class="ey">team</span><span>Sage Park, Soha Mehta, Michael Kim, Carrie Shi</span></div>
+        <div><span class="ey">tools</span><span>Figjam, Figma</span></div>
+      </div>
+
+      <div class="hero-imgs stagger">
+        <div class="himg himg-logo fx rv-a" data-tilt="4">
+          <img src="img/invetty-logo.webp" alt="The invetty app icon: a glassy lowercase i with a star for its dot" width="609" height="609">
+          <span class="lab">the app icon</span>
+        </div>
+        <div class="himg himg-fan fx rv-a" data-tilt="4">
+          <img class="f1" src="img/invitation-after.webp" alt="The invitation screen" width="796" height="1740">
+          <img class="f2" src="img/questionnaire-after.webp" alt="The dietary questionnaire screen" width="796" height="1740">
+          <img class="f3" src="img/home-after.webp" alt="The events home screen" width="796" height="1740">
+          <span class="lab">the final design</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="case-main">
+
+      <!-- ================= 00 intro ================= -->
+      <section class="csec" id="s-intro">
+        <p class="ey" data-adapt>00 · intro</p>
+        <h2 class="h2" data-adapt>Design Question</h2>
+        <div class="gl qcard stack rv">
+          How can we help people with celiac disease and gluten sensitivities experience less anxiety and participate more confidently in social experiences involving food by giving them greater control over how they navigate their dietary needs?
+        </div>
+        <div class="pills">
+          <span class="pillc">research</span><span class="pillc">define</span><span class="pillc">ideate</span><span class="pillc">design</span><span class="pillc">test</span><span class="pillc">11 weeks</span>
+        </div>
+      </section>
+
+      <!-- ================= 01 research ================= -->
+      <section class="csec" id="s-research">
+        <p class="ey" data-adapt>01 · research</p>
+        <h2 class="h2" data-adapt>What we needed to learn</h2>
+        <p class="lead" data-adapt>Eating safely with celiac disease takes work before the meal starts, and the social and emotional cost is as heavy as the physical risk. To understand both sides, we spoke with people who live with it, as well as allergists and dieticians who work with celiac disease patients of all ages.</p>
+
+        <div class="cols3 stack stagger">
+          <div class="gl stat rv-a"><b class="count" data-to="13">13</b><span>total interviews</span></div>
+          <div class="gl stat rv-a"><b class="count" data-to="10">10</b><span>celiac disease patients</span></div>
+          <div class="gl stat rv-a"><b class="count" data-to="3">3</b><span>doctors/dieticians</span></div>
+        </div>
+
+        <div class="cols2 stack stagger">
+          <div class="gl fcard hov rv-a"><p class="ey">key finding 1</p>
+            <ul><li>Vetting falls on the person with celiac</li><li>They interrogate waiters, read every label, pre-plan trips, and rarely trust anyone’s kitchen.</li></ul></div>
+          <div class="gl fcard hov rv-a"><p class="ey">key finding 2</p>
+            <ul><li>The cost is social, not just physical</li><li>Eating differently from peers feels lonely, and people read celiac as a “preference” or “attention.”</li></ul></div>
+        </div>
+
+        <div class="stack stagger">
+          <div class="gl quote hov rv-a"><p>“There’s definitely a lot of stress and anxiety every single time I go to a new restaurant.” (P1)</p><cite>P1, Celiac Disease Patient</cite></div>
+          <div class="gl quote hov rv-a"><p>“Everybody is concerned about gluten contamination, everybody.” (P3)</p><cite>P3, Celiac Disease specialist</cite></div>
+        </div>
+      </section>
+
+      <!-- ================= 02 define ================= -->
+      <section class="csec" id="s-define">
+        <p class="ey" data-adapt>02 · define</p>
+        <h2 class="h2" data-adapt>Synthesizing our research</h2>
+        <p class="lead" data-adapt>Eating safely with celiac disease takes work before the meal starts, and the social and emotional cost is as heavy as the physical risk. We spoke with people who live with it and people who treat it.</p>
+
+        <div class="define-grid">
+          <div class="gl persona hov rv">
+            <div class="avatar"></div>
+            <h3>Livia</h3>
+            <p class="sm">Mid-20s · Missouri · Newly Employed · Diagnosed with Celiac Disease at 14</p>
+            <p class="ey">scenario</p>
+            <p>Livia has just started her first corporate job. Her manager invites her to a team luncheon where senior leaders will also be attending. It is a valuable chance to build connections and make a good first impression, and this is a hard event to miss.</p>
+            <p>However, Livia has Celiac Disease, meaning she cannot just choose whatever is on the menu. She has little time to research the restaurant, isn’t sure whether its gluten-free options are truly safe, and feels uncomfortable drawing attention to her dietary restrictions in front of new colleagues.</p>
+          </div>
+          <div class="right-col">
+            <div class="hmw hov rv"><p class="ey">how might we</p><p>How might we make it easier for friends to do the quiet prep work, like sending a menu ahead, without the person having to ask for it?</p></div>
+            <div class="gl conf hov rv"><p class="ey">conflicts</p>
+              <ol>
+                <li>Food Safety<ol type="a"><li>How can she make sure her gluten-free needs are properly heard, and that her food is served according to her very specific needs?</li></ol></li>
+                <li>Social Pressure<ol type="a"><li>Can she communicate her needs without feeling singled out or creating an awkward moment?</li></ol></li>
+              </ol>
+            </div>
+          </div>
+        </div>
+
+        <div class="zoomable no-draw rv" id="jmap">
+          <img src="img/journey-map.webp" alt="Journey map for Livia across five stages: awareness, consideration, acquisition, service and loyalty, with her actions, goals, feelings, opportunities and pain points" width="2400" height="1289" loading="lazy">
+          <span class="zhint">hover to zoom in</span>
+        </div>
+      </section>
+
+      <!-- ================= 03 ideate ================= -->
+      <section class="csec" id="s-ideate">
+        <p class="ey" data-adapt>03 · ideate</p>
+        <h2 class="h2" data-adapt>The Concept</h2>
+        <p class="lead" data-adapt>We compared three concepts and chose “What’s Not Good” (which became invetty). It scored highest, and the scores lined up with what we heard in research.</p>
+        <div class="gl concept rv"><p class="ey">the concept</p>
+          Inspired by the When’s Good website, a platform where people attending an event share their dietary restrictions and food preparation needs in advance. Each guest gets a link to select foods, ingredients or preparation methods that don’t work for them, including cross-contamination, shared utensils and cooking surfaces. Unsuitable options are filtered out, leaving the organizer with a list that works for everyone. The form stays completely anonymous, so anyone who feels embarrassed to speak up can do so safely.
+        </div>
+        <div class="cols3 stack stagger">
+          <div class="gl mini-card hov rv-a"><h4>Less anxiety</h4><p>Needs are shared privately before the event even happens.</p></div>
+          <div class="gl mini-card hov rv-a"><h4>More confidence</h4><p>Incentivizes the host to plan a dining option that works for everyone from the start.</p></div>
+          <div class="gl mini-card hov rv-a"><h4>Better Bonding</h4><p>Everyone is able to share a meal together, nobody is forced to sit out.</p></div>
+        </div>
+      </section>
+
+      <!-- ================= 04 iterate ================= -->
+      <section class="csec" id="s-iterate">
+        <p class="ey" data-adapt>04 · iterate</p>
+        <h2 class="h2" data-adapt>Wireframing/user testing</h2>
+        <p class="lead" data-adapt>We started with grey wireframes and tested them with real people. After each round, the screens changed for a reason.</p>
+        <span class="hint-hover"><i></i>hover over a screen to see what changed and why</span>
+
+        <!-- 1: invitation -->
+        <div class="pair">
+          <div class="screens rv" tabindex="0" aria-label="Invitation screen, before and after. Hover or focus to read what changed.">
+            <div class="scr before"><span class="lbl">Before</span><div class="shot"><img src="img/invitation-before.webp" alt="Before: a grey wireframe of the invitation, with a poster and three round buttons" width="796" height="1740" loading="lazy"></div></div>
+            <div class="scr after"><span class="lbl">After</span><div class="shot"><img src="img/invitation-after.webp" alt="After: the colorized invitation with clear Maybe, Going and No buttons" width="796" height="1740" loading="lazy"><i class="hs" style="left:50%;top:88.5%"></i><i class="hs" style="left:50%;top:57%"></i></div></div>
+          </div>
+          <div class="chats">
+            <div class="bub b1"><span class="av"></span><div class="tx"><b>what changed</b>The grey wireframe became a colorized screen with clear Maybe / Going / No buttons, and the layout now makes Going stand out.</div></div>
+            <div class="typing"><span class="av"></span><div class="tx"><i></i><i></i><i></i></div></div>
+            <div class="bub b2"><span class="av"></span><div class="tx"><b>what drove it</b>Users need clear signs of which elements are interactive and what to do next. Some testers got distracted by other buttons instead of tapping “Going.”</div></div>
+          </div>
+        </div>
+
+        <!-- 2: questionnaire -->
+        <div class="pair">
+          <div class="screens rv" tabindex="0" aria-label="Dietary questionnaire, before and after. Hover or focus to read what changed.">
+            <div class="scr before"><span class="lbl">Before</span><div class="shot"><img src="img/questionnaire-before.webp" alt="Before: a flat list of options to pick from" width="796" height="1740" loading="lazy"></div></div>
+            <div class="scr after"><span class="lbl">After</span><div class="shot"><img src="img/questionnaire-after.webp" alt="After: options grouped into prep and cleanliness, equipment and serving, with a search bar" width="796" height="1740" loading="lazy"><i class="hs" style="left:50%;top:49%"></i><i class="hs" style="left:50%;top:31%"></i></div></div>
+          </div>
+          <div class="chats">
+            <div class="bub b1"><span class="av"></span><div class="tx"><b>what changed</b>The flat list of chips became grouped sections (Prep &amp; cleanliness, Equipment, Serving) with a search bar. It became better organized and holds more options.</div></div>
+            <div class="typing"><span class="av"></span><div class="tx"><i></i><i></i><i></i></div></div>
+            <div class="bub b2"><span class="av"></span><div class="tx"><b>what drove it</b>Allergy information wasn’t being absorbed well. Most users scrolled past it instead of looking closely. We also wanted to be more specific about preparation, given how strict celiac disease is.</div></div>
+          </div>
+        </div>
+
+        <!-- 3: home + navigation -->
+        <div class="pair">
+          <div class="screens rv" tabindex="0" aria-label="Events home screen, before and after. Hover or focus to read what changed.">
+            <div class="scr before"><span class="lbl">Before</span><div class="shot"><img src="img/home-before.webp" alt="Before: the events list with a three-icon bar" width="796" height="1740" loading="lazy"></div></div>
+            <div class="scr after"><span class="lbl">After</span><div class="shot"><img src="img/home-after.webp" alt="After: the events list with a Create event button and a five-icon menu bar" width="796" height="1740" loading="lazy"><i class="hs" style="left:50%;top:95.5%"></i><i class="hs" style="left:50%;top:15%"></i></div></div>
+          </div>
+          <div class="chats">
+            <div class="bub b1"><span class="av"></span><div class="tx"><b>what changed</b>The 3-icon bar became a 5-icon menu bar, and a “Create event” button was added at the top.</div></div>
+            <div class="typing"><span class="av"></span><div class="tx"><i></i><i></i><i></i></div></div>
+            <div class="bub b2"><span class="av"></span><div class="tx"><b>what drove it</b>Testers couldn’t navigate to the profile or the rest of the app, and tapped around randomly.</div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 05 outcome ================= -->
+      <section class="csec" id="s-outcome">
+        <p class="ey" data-adapt>05 · outcome</p>
+        <h2 class="h2" data-adapt>Final Design</h2>
+
+        <div class="dsys rv">
+          <span class="ey">design system</span>
+          <span class="sw" aria-hidden="true"><i style="background:#3b3f68"></i><i style="background:#5c6192"></i><i style="background:#e9dbbc"></i><i style="background:#2a2a50"></i></span>
+          <span>Ubuntu + DM Sans</span>
+        </div>
+
+        <!-- the two videos: they start together when you scroll here -->
+        <div class="final" id="final">
+          <figure>
+            <video id="vA" muted playsinline preload="auto" poster="video/invitee-poster.jpg" aria-label="The invitee flow, a screen recording of the app">
+              <source src="video/invitee-flow.mp4" type='video/mp4; codecs="avc1.640028"'>
+              <source src="video/invitee-flow.webm" type="video/webm">
+            </video>
+            <figcaption>invitee flow</figcaption>
+          </figure>
+          <figure>
+            <video id="vB" muted playsinline preload="auto" poster="video/inviter-poster.jpg" aria-label="The inviter flow, a screen recording of the app">
+              <source src="video/inviter-flow.mp4" type='video/mp4; codecs="avc1.640028"'>
+              <source src="video/inviter-flow.webm" type="video/webm">
+            </video>
+            <figcaption>inviter flow</figcaption>
+          </figure>
+          <button class="vctl" id="vctl" type="button" aria-label="Pause the videos">
+            <svg class="i-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+            <svg class="i-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+            <span>pause</span>
+          </button>
+        </div>
+
+        <div class="cols2 stack reflect stagger">
+          <div class="gl fcard hov rv-a"><p class="ey">what i learned</p>
+            <ul>
+              <li>We assumed that because anyone can host, the host side would be intuitive. It wasn’t, and we only found that out by watching people use it.</li>
+              <li>The most important information has to be impossible to miss. The first tester skipped the celiac alert, so we redesigned it.</li>
+              <li>Clear structure beats a long flat list: grouping the questionnaire made the choices easier to take in.</li>
+            </ul></div>
+          <div class="gl fcard hov rv-a"><p class="ey">what i would do next</p>
+            <ul>
+              <li>Expand the user testing base, so we get more feedback and make sure the flow is universally intuitive for everybody</li>
+              <li>Testing with a bigger, more real-world group of users.</li>
+              <li>Support for other dietary restrictions beyond celiac disease.</li>
+            </ul></div>
+        </div>
+
+        <a class="next-card fx rv" href="#" data-soon data-tilt="3" aria-label="Next project: kishimoto mendo">
+          <span class="bg"></span>
+          <span class="nk"><small>next project</small><strong>kishimoto mendo</strong></span>
+          <span class="go"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg></span>
+        </a>
+      </section>
+
+    </div>
+
+    <!-- ================= footer ================= -->
+    <footer class="cfoot">
+      <div>
+        <h2>let’s say hi</h2>
+        <a class="email" href="mailto:sagespark19@gmail.com">sagespark19@gmail.com</a>
+      </div>
+      <div class="mini" data-state="idle" aria-label="My playlist">
+        <span class="m-rec"><i></i></span>
+        <span class="m-txt"><small>my playlist</small><strong>[playlist name]</strong></span>
+        <button class="pl-play" type="button" aria-label="Play or pause the playlist">
+          <svg class="ico-play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="ico-pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+        </button>
+      </div>
+    </footer>
+
+  </main>
+</div>
+
+<script src="js/fog.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/invetty.js"></script>
+<script src="js/player.js"></script>
+</body>
+</html>
