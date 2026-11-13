@@ -1,0 +1,384 @@
+/* ==========================================================================
+   site.css: everything shared by all pages + the home page
+   1 tokens · 2 base · 3 menu · 4 time chip · 5 home hero · 6 work sheet + cards
+   7 lobby + vinyl player · 8 reveal + motion
+   (the case study lives in case.css)
+   ========================================================================== */
+
+/* ==========================================================================
+   1. TOKENS
+   Sizes were measured from the Figma frames and converted to clamp()s.
+   The values marked "fog.js" are rewritten live as the sky changes.
+   ========================================================================== */
+:root{
+  --pad-x:      clamp(20px, 3.24vw, 56px);                                  /* page side margin */
+  --bar-top:    calc(env(safe-area-inset-top,0px) + clamp(28px, 3.2vw, 56px));   /* menu + time chip share this top edge */
+  --bar-h:      clamp(38px, 2.7vw, 48px);                                   /* ...and this height */
+  --fs-nav:     clamp(.85rem, .95vw, 1.1rem);
+  --fs-sub:     clamp(1.1rem, 1.85vw, 2rem);
+  --fs-label:   clamp(.85rem, 1.05vw, 1.2rem);
+
+  --accent:     #ff8a4c;                      /* the one warm accent */
+  --chrome-bg:  rgba(24,40,88,.62);           /* menu + chips */
+  --chrome-line:rgba(255,255,255,.12);
+  --ease:       cubic-bezier(.2,.8,.2,1);
+
+  /* set live by fog.js */
+  --ink:#10244a;                              /* text colour on the sky */
+  --halo:rgba(255,255,255,0);
+  --sky:#0b1634;
+  --night:0;                                  /* 0 = day ... 1 = night */
+  --glass-bg:rgba(255,255,255,.52);           /* light glass panels (case study) */
+  --glass-line:rgba(255,255,255,.68);
+  --glass-ink:#0b1f4d;
+  --glass-ink2:#274a82;
+  --sheet-bg:rgba(34,48,92,.56);              /* the dark sheet on the home page */
+}
+
+/* ==========================================================================
+   2. BASE
+   ========================================================================== */
+html{background:var(--sky)}
+body{
+  margin:0;color:#fff;
+  font-family:'Inter','Helvetica Neue',Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;-webkit-user-select:none;
+  overscroll-behavior:none;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit}
+img,video{display:block;max-width:100%}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:8px}
+
+/* the foggy window: fog.js paints everything here */
+#fog{position:fixed;inset:0;width:100%;height:100%;display:block;z-index:0;pointer-events:none}
+
+/* all page content lives in #scroller; fog.js moves it with a smoothed transform */
+#scroller{position:fixed;top:0;left:0;right:0;z-index:1;will-change:transform}
+
+/* ==========================================================================
+   3. MENU
+   ========================================================================== */
+.menu{
+  position:fixed;z-index:30;top:var(--bar-top);left:var(--pad-x);
+  height:var(--bar-h);box-sizing:border-box;
+  display:flex;align-items:center;gap:2px;padding:0 5px;
+  border-radius:999px;
+  background:var(--chrome-bg);border:1px solid var(--chrome-line);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  box-shadow:0 10px 30px rgba(8,18,50,.2);
+  color:#fff;font-size:var(--fs-nav);font-weight:500;
+}
+.menu a{position:relative;z-index:1;padding:.5em 1.05em;border-radius:999px}
+/* the highlight that glides to whichever link you hover (placed by ui.js) */
+.menu .ind{position:absolute;left:0;top:4px;bottom:4px;width:0;border-radius:999px;background:rgba(255,255,255,.22);opacity:0;pointer-events:none;transition:transform .38s var(--ease),width .38s var(--ease),opacity .2s}
+
+/* ==========================================================================
+   4. TIME CHIP: shows your time; hover (or tap) opens the sky slider
+   ========================================================================== */
+.time{
+  position:fixed;z-index:30;top:var(--bar-top);right:var(--pad-x);
+  height:var(--bar-h);box-sizing:border-box;
+  display:flex;align-items:center;gap:.65em;padding:0 1.2em 0 .95em;
+  border-radius:999px;
+  background:var(--chrome-bg);border:1px solid var(--chrome-line);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  box-shadow:0 10px 30px rgba(8,18,50,.2);
+  color:#fff;font-size:var(--fs-nav);font-weight:500;white-space:nowrap;
+}
+.time-sun{display:grid;place-items:center;padding:0;border:0;background:none;cursor:pointer}
+.time-sun svg{width:1.25em;height:1.25em;transition:transform .8s var(--ease)}
+.time:hover .time-sun svg,.time.open .time-sun svg{transform:rotate(90deg)}
+.time-extra{
+  display:flex;align-items:center;gap:.75em;
+  max-width:0;opacity:0;overflow:hidden;
+  transition:max-width .55s var(--ease),opacity .3s,margin .55s var(--ease);
+}
+.time:hover .time-extra,.time:focus-within .time-extra,.time.open .time-extra{max-width:16em;opacity:1;margin-left:.35em}
+
+/* the slider: its track shows the whole day, night > dawn > day > dusk > night */
+.time input[type=range]{
+  -webkit-appearance:none;appearance:none;width:8em;height:.5em;margin:0;border-radius:99px;cursor:pointer;
+  background:linear-gradient(90deg,#0b1a3d 0%,#d68aa2 25%,#4592e6 40%,#4592e6 65%,#f0a070 78%,#0b1a3d 100%);
+}
+.time input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:1.15em;height:1.15em;border-radius:50%;background:#fff;border:0;box-shadow:0 2px 8px rgba(0,0,0,.4);transition:transform .2s}
+.time input[type=range]::-moz-range-thumb{width:1.15em;height:1.15em;border-radius:50%;background:#fff;border:0;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.time input[type=range]:active::-webkit-slider-thumb{transform:scale(1.2)}
+
+.time button#live{
+  font-size:.78em;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  display:inline-flex;align-items:center;gap:.4em;
+  color:#d4182b;background:rgba(255,255,255,.92);border:1.5px solid #d4182b;border-radius:999px;
+  padding:.18em .75em .18em .55em;cursor:pointer;transition:transform .2s var(--ease);
+}
+.time button#live:hover{transform:scale(1.06)}
+.time button#live::before{content:"";width:.55em;height:.55em;border-radius:50%;background:#e11d2e;animation:blink 1.4s ease-in-out infinite}
+.time button#live.off{color:#4b5563;border-color:#6b7280}
+.time button#live.off::before{background:#6b7280;animation:none}
+@keyframes blink{0%,45%{opacity:1}60%,100%{opacity:.15}}
+
+/* small note under the chip so people know to hover (fades once they have) */
+.time-hint{
+  position:fixed;z-index:29;right:var(--pad-x);top:calc(var(--bar-top) + var(--bar-h) + .7rem);
+  display:flex;align-items:center;gap:.4em;
+  font-size:.78rem;font-weight:500;color:rgba(255,255,255,.92);text-shadow:0 1px 10px rgba(10,24,70,.55);
+  pointer-events:none;animation:nudge 2.6s ease-in-out infinite;transition:opacity .5s;
+}
+.time-hint.gone{opacity:0;animation:none}
+.time:hover~.time-hint,.time.open~.time-hint{opacity:0}
+@keyframes nudge{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+
+@media (max-width:760px){
+  .time{right:12px;top:calc(env(safe-area-inset-top,0px) + 12px);height:36px;font-size:.78rem}
+  .time-hint{right:12px;top:calc(env(safe-area-inset-top,0px) + 54px)}
+  .menu{left:12px;top:calc(env(safe-area-inset-top,0px) + 84px)}
+  .hero{padding-top:calc(env(safe-area-inset-top,0px) + 150px)}
+}
+
+/* ==========================================================================
+   5. HOME: hero
+   ========================================================================== */
+.hero{
+  display:flex;flex-direction:column;align-items:center;
+  padding:clamp(104px,9.2vw,180px) var(--pad-x) 0;
+  text-align:center;
+  touch-action:pan-y;            /* vertical swipes scroll, horizontal strokes draw */
+}
+/* the handwritten title is painted on the canvas; this empty box reserves its room (fog.js sets the height) */
+.title-slot{align-self:stretch;height:200px}
+
+.sub,.hint{
+  margin:0;max-width:100%;color:var(--ink);
+  text-shadow:0 0 5px var(--halo);
+  transition:color .6s,opacity .8s;
+}
+.sub{margin-top:clamp(.4rem,.9vw,.9rem);font-size:var(--fs-sub);font-weight:400;line-height:1.3}
+.hint{margin-top:clamp(.5rem,.9vw,1rem);font-size:var(--fs-label);font-weight:400}
+.hint kbd{font:inherit;padding:.1em .8em .14em;border-radius:999px;background:rgba(42,39,69,.6);color:#a9c7ce}
+.drawn.breathed .hint{opacity:0}                                   /* the hint fades once you've tried both things it says */
+@media (hover:none){.hint .hk{display:none}.drawn .hint{opacity:0}}  /* touch screens have no shift key */
+
+/* sentence breaks onto two lines on narrow screens */
+.ln{display:inline}
+@media (max-width:900px){.ln{display:block}}
+
+/* rolling words */
+.adj{
+  font-weight:600;
+  --px:8em;--py:.35em;
+  display:inline-block;position:relative;vertical-align:baseline;
+  white-space:nowrap;box-sizing:content-box;height:1.3em;
+  padding:var(--py) var(--px);margin:calc(var(--py)*-1) calc(var(--px)*-1);
+  transition:width .9s cubic-bezier(.65,0,.35,1);
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);
+          mask-image:linear-gradient(to bottom,transparent 0,#000 var(--py),#000 calc(100% - var(--py)),transparent 100%);
+}
+.adj::before{content:"\200b"}
+.adj .w{position:absolute;left:0;right:0;top:var(--py);text-align:center;white-space:nowrap;animation:wi .9s cubic-bezier(.65,0,.35,1) both}
+.adj .w.out{animation:wo .9s cubic-bezier(.65,0,.35,1) both}
+@keyframes wi{from{transform:translateY(110%)}to{transform:none}}
+@keyframes wo{from{transform:none}to{transform:translateY(-110%)}}
+
+/* ==========================================================================
+   6. HOME: the dark sheet, filters, bento grid and cards
+   ========================================================================== */
+.sheet{
+  position:relative;
+  margin-top:clamp(36px,4.6vw,86px);
+  padding:clamp(22px,3vw,52px) clamp(20px,4.9vw,90px) 0;
+  border-radius:clamp(36px,5.4vw,96px) clamp(36px,5.4vw,96px) 0 0;
+  background:var(--sheet-bg);
+  box-shadow:0 -30px 90px rgba(5,12,40,.18);
+}
+
+.works-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:clamp(14px,1.8vw,28px)}
+.chip{
+  display:inline-flex;align-items:center;gap:.6em;
+  padding:.55em 1.1em;border-radius:999px;
+  background:rgba(22,36,84,.72);border:1px solid rgba(255,255,255,.12);
+  color:#fff;font-size:var(--fs-label);font-weight:500;
+}
+.chip i{width:.55em;height:.55em;border-radius:50%;background:var(--accent)}
+.filters{display:flex;gap:.5em;flex-wrap:wrap}
+.fchip{
+  padding:.5em 1.1em;border:0;border-radius:999px;cursor:pointer;
+  background:rgba(196,212,244,.62);color:#10244a;
+  font-size:var(--fs-label);font-weight:500;
+  transition:transform .25s var(--ease),background .25s,box-shadow .25s;
+}
+.fchip:hover{transform:translateY(-2px);background:rgba(220,232,252,.85)}
+.fchip.on{background:#fff;box-shadow:0 6px 18px rgba(8,18,50,.22)}
+
+.works-grid{
+  --gx:clamp(14px,2.8vw,44px);--gy:clamp(12px,1.5vw,24px);--row:clamp(190px,19vw,340px);
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-rows:var(--row) var(--row) calc(var(--row)*1.72);
+  column-gap:var(--gx);row-gap:var(--gy);
+  perspective:1400px;
+}
+.c-invetty{grid-column:1/span 7;grid-row:1/span 2}
+.c-kishimoto{grid-column:8/span 5;grid-row:1}
+.c-softspot{grid-column:8/span 5;grid-row:2}
+.c-strike{grid-column:1/span 4;grid-row:3}
+.c-social{grid-column:5/span 3;grid-row:3}
+.c-type{grid-column:8/span 5;grid-row:3}
+
+.card{
+  --fog:16px;                                     /* how fogged the picture is: hover wipes it clear */
+  position:relative;display:block;overflow:hidden;isolation:isolate;
+  border-radius:clamp(20px,2vw,32px);border:1px solid rgba(255,255,255,.26);
+  color:#fff;cursor:pointer;
+  transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .3s ease-out,box-shadow .4s,opacity .45s,filter .45s;
+  box-shadow:0 18px 50px rgba(5,12,40,.22);
+}
+.card:hover,.card:focus-visible{--fog:3px;box-shadow:0 30px 70px rgba(5,12,40,.4)}
+.card .media{position:absolute;inset:-6%;z-index:-2;filter:blur(var(--fog));transition:filter .6s var(--ease),transform .8s var(--ease)}
+.card:hover .media{transform:scale(1.05)}
+.card .media i{position:absolute;display:block;border-radius:18px;background:rgba(255,255,255,.22)}
+.card::before{                                    /* a soft light that follows the cursor */
+  content:"";position:absolute;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .35s;
+  background:radial-gradient(circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.3),transparent 48%);
+}
+.card:hover::before{opacity:1}
+.card::after{                                     /* bottom shade so the title always reads */
+  content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(8,18,45,0) 38%,rgba(8,18,45,.62));
+}
+.card .meta{position:absolute;left:clamp(14px,1.5vw,24px);bottom:clamp(14px,1.5vw,24px);right:16px;z-index:2;transition:transform .45s var(--ease)}
+.card:hover .meta{transform:translateY(-4px)}
+.card h3{margin:0 0 .5em;font-size:clamp(1.05rem,1.75vw,2rem);font-weight:500;line-height:1.1;letter-spacing:-.005em}
+.tags{display:flex;gap:.45em;flex-wrap:wrap}
+.tagp{padding:.3em .95em;border-radius:999px;background:rgba(28,40,86,.5);border:1px solid rgba(255,255,255,.16);font-size:clamp(.68rem,.82vw,.9rem);font-weight:500;line-height:1.2}
+.card .go{
+  position:absolute;top:clamp(12px,1.4vw,22px);right:clamp(12px,1.4vw,22px);z-index:2;
+  width:clamp(30px,2.8vw,44px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.22);transition:background .3s,transform .4s var(--ease);
+}
+.card .go svg{width:42%;height:42%;transition:transform .4s var(--ease)}
+.card:hover .go{background:var(--accent);transform:scale(1.1)}
+.card:hover .go svg{transform:translate(2px,-2px)}
+.card.dim{filter:saturate(.5);transform:scale(.985)}                       /* filtered out */
+.js .card.rv-a.dim,.card.dim{opacity:.26}
+
+/* invetty: dark glass with the app icon */
+.c-invetty{background:linear-gradient(160deg,rgba(66,76,120,.78),rgba(34,40,84,.86))}
+.c-invetty .logo{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:contain;z-index:0;
+  transform:translate(calc((var(--px,.5) - .5)*16px),calc((var(--py,.5) - .5)*16px)) scale(1);
+  transition:transform .5s var(--ease);filter:drop-shadow(0 20px 40px rgba(0,0,0,.28));
+}
+.c-invetty:hover .logo{transform:translate(calc((var(--px,.5) - .5)*28px),calc((var(--py,.5) - .5)*28px)) scale(1.045) rotate(-1.5deg)}
+.c-invetty::after{background:none}
+.c-invetty h3{font-weight:300;font-size:clamp(1.4rem,2.35vw,2.6rem)}
+.pill-case{position:absolute;top:clamp(12px,1.4vw,22px);left:clamp(14px,1.5vw,24px);z-index:2;padding:.38em 1em;border-radius:999px;background:rgba(22,32,76,.7);border:1px solid rgba(255,255,255,.14);font-size:clamp(.66rem,.82vw,.9rem);font-weight:500}
+
+@media (max-width:900px){
+  .works-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:clamp(180px,38vw,300px)}
+  .c-invetty{grid-column:1/-1;grid-row:auto;height:clamp(300px,70vw,520px)}
+  .c-kishimoto,.c-softspot,.c-strike,.c-social,.c-type{grid-column:auto;grid-row:auto}
+  .c-type{grid-column:1/-1}
+}
+@media (max-width:560px){
+  .works-grid{grid-template-columns:minmax(0,1fr)}
+  .c-type{grid-column:auto}
+}
+
+/* ==========================================================================
+   7. HOME: lobby (contact + vinyl player) and footer
+   ========================================================================== */
+.lobby{display:flex;align-items:flex-end;justify-content:space-between;gap:clamp(24px,3vw,48px);flex-wrap:wrap;margin-top:clamp(40px,4.2vw,76px);padding:0 clamp(0px,1.4vw,22px)}
+.hi h2{margin:0;font-size:clamp(2.2rem,3.6vw,4rem);font-weight:400;line-height:1.05;letter-spacing:-.01em}
+.hi .email{display:inline-block;margin-top:.3em;font-size:clamp(.95rem,1.2vw,1.3rem);text-decoration:underline;text-underline-offset:.22em;text-decoration-thickness:1px;transition:text-underline-offset .25s}
+.hi .email:hover{text-underline-offset:.4em}
+.btns{display:flex;gap:.6em;flex-wrap:wrap;margin-top:clamp(.8rem,1.2vw,1.2rem)}
+.btn{
+  display:inline-block;padding:.65em 1.35em;border-radius:999px;font-size:clamp(.85rem,1vw,1.1rem);font-weight:500;
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+  transition:background .25s,transform .25s var(--ease),box-shadow .3s;
+}
+.btn:hover{background:rgba(255,255,255,.26);box-shadow:0 8px 22px rgba(5,12,40,.25)}
+.btn.primary{background:var(--accent);border-color:transparent;color:#1a1205;font-weight:600}
+.btn.primary:hover{background:#ff9d68}
+
+.foot{display:flex;justify-content:space-between;align-items:center;padding:clamp(28px,3.4vw,56px) clamp(0px,1.4vw,22px);font-size:clamp(.75rem,.85vw,.95rem);color:rgba(255,255,255,.88)}
+.foot a{display:inline-flex;align-items:center;gap:.5em}
+.foot a svg{width:1em;height:1em;transition:transform .3s var(--ease)}
+.foot a:hover svg{transform:translateY(-4px)}
+
+/* ---- the vinyl player (sizes scale with the card via cqw) ---- */
+.player{
+  container-type:inline-size;position:relative;flex:0 1 clamp(300px,35vw,620px);aspect-ratio:2/1;
+  border-radius:clamp(18px,2vw,30px);overflow:hidden;
+  background:rgba(120,134,170,.28);border:1px solid rgba(255,255,255,.2);
+  box-shadow:0 20px 60px rgba(4,10,34,.28);
+  transition:box-shadow .4s,transform .4s var(--ease);
+}
+.player:hover{box-shadow:0 28px 70px rgba(4,10,34,.4);transform:translateY(-3px)}
+.rec{position:absolute;left:5cqw;top:5cqw;width:40cqw;height:40cqw;border-radius:50%;
+  background:repeating-radial-gradient(circle at center,#0a1026 0,#0a1026 .32cqw,#161d3b .32cqw,#161d3b .48cqw);
+  box-shadow:0 2cqw 5cqw rgba(0,0,0,.45);animation:spin 3.4s linear infinite;animation-play-state:paused;transition:transform .8s var(--ease)}
+.rec::before{content:"";position:absolute;inset:0;border-radius:50%;background:conic-gradient(from 20deg,transparent 0,rgba(255,255,255,.2) 30deg,transparent 70deg,transparent 180deg,rgba(255,255,255,.14) 210deg,transparent 250deg)}
+.rec-label{position:absolute;left:13cqw;top:13cqw;width:14cqw;height:14cqw;border-radius:50%;background:var(--accent)}
+.rec-hole{position:absolute;left:19.2cqw;top:19.2cqw;width:1.6cqw;height:1.6cqw;border-radius:50%;background:#0a1026}
+.player:hover:not([data-state=playing]) .rec{transform:rotate(14deg)}      /* the record nudges when you hover */
+.player[data-state=playing] .rec{animation-play-state:running}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.arm{position:absolute;left:49cqw;top:3.6cqw;width:0;height:0;transform-origin:0 0;transform:rotate(var(--arm,2deg));transition:transform 1s var(--ease)}
+.arm .pivot{position:absolute;left:-2.1cqw;top:-2.1cqw;width:4.2cqw;height:4.2cqw;border-radius:50%;background:#d9e2f2;border:.8cqw solid #8aa0c4;box-sizing:border-box}
+.arm .bar{position:absolute;left:-.5cqw;top:1.2cqw;width:1cqw;height:34cqw;border-radius:.5cqw;background:#d9e2f2}
+.arm .head{position:absolute;left:-2cqw;top:33.4cqw;width:3.8cqw;height:6.4cqw;border-radius:.9cqw;background:#8aa0c4}
+.player:hover:not([data-state=playing]){--arm:7deg}                         /* the needle swings in a little on hover */
+.player[data-state=playing]{--arm:24deg}
+
+.pl-info{position:absolute;left:56cqw;right:4cqw;top:5cqw;display:flex;flex-direction:column}
+.pl-k{font-size:clamp(9px,1.9cqw,12px);font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:#e3ebfa}
+.pl-name{margin-top:1.2cqw;font-size:clamp(15px,4.2cqw,26px);font-weight:600;line-height:1.15}
+.pl-sub{margin-top:.8cqw;font-size:clamp(10px,2.3cqw,14px);color:#dbe6fa}
+.pl-ctrl{display:flex;align-items:center;gap:2.4cqw;margin-top:4.4cqw}
+.pl-play{width:9.2cqw;height:9.2cqw;min-width:34px;min-height:34px;border:0;border-radius:50%;background:var(--accent);color:#1a1205;display:grid;place-items:center;cursor:pointer;transition:transform .25s var(--ease),box-shadow .3s}
+.pl-play:hover{transform:scale(1.1);box-shadow:0 0 0 .9cqw rgba(255,138,76,.25)}
+.pl-play svg{width:42%;height:42%}
+.pl-play .ico-pause{display:none}
+.player[data-state=playing] .pl-play .ico-play{display:none}
+.player[data-state=playing] .pl-play .ico-pause{display:block}
+.pl-sk{width:7cqw;height:7cqw;min-width:28px;min-height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);display:grid;place-items:center;cursor:pointer;transition:background .25s,transform .25s var(--ease)}
+.pl-sk:hover{background:rgba(255,255,255,.28);transform:scale(1.08)}
+.pl-sk svg{width:44%;height:44%}
+.pl-bar{margin-top:4.4cqw;height:.7cqw;min-height:3px;border-radius:99px;background:rgba(255,255,255,.3)}
+.pl-bar i{display:block;height:100%;width:0;border-radius:inherit;background:#fff;transition:width .5s linear}
+.pl-note{margin-top:1.8cqw;font-size:clamp(9px,2.1cqw,13px);color:#dbe6fa}
+
+/* the small version (case study footer) */
+.mini{display:inline-flex;align-items:center;gap:12px;padding:8px 10px 8px 8px;border-radius:999px;background:rgba(120,134,170,.3);border:1px solid rgba(255,255,255,.22);color:#fff;transition:transform .3s var(--ease),background .3s}
+.mini:hover{transform:translateY(-3px);background:rgba(120,134,170,.45)}
+.mini .m-rec{position:relative;width:46px;height:46px;border-radius:50%;background:repeating-radial-gradient(circle at center,#0a1026 0,#0a1026 2px,#161d3b 2px,#161d3b 3px);animation:spin 3.4s linear infinite;animation-play-state:paused}
+.mini .m-rec i{position:absolute;left:15px;top:15px;width:16px;height:16px;border-radius:50%;background:var(--accent)}
+.mini[data-state=playing] .m-rec{animation-play-state:running}
+.mini .m-txt{display:flex;flex-direction:column;line-height:1.2;padding-right:4px}
+.mini .m-txt small{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:#dbe6fa}
+.mini .m-txt strong{font-size:14px;font-weight:600}
+.mini .pl-play{width:36px;height:36px;min-width:36px;min-height:36px}
+
+.toast{position:fixed;z-index:60;left:50%;bottom:28px;transform:translate(-50%,20px);padding:.7em 1.3em;border-radius:999px;background:rgba(16,28,70,.92);color:#fff;font-size:.9rem;opacity:0;pointer-events:none;transition:opacity .3s,transform .4s var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.embed-slot{position:fixed;left:-9999px;top:0;width:320px;height:80px}
+
+/* ==========================================================================
+   8. REVEAL ON SCROLL + MOTION PREFERENCES
+   ========================================================================== */
+/* .rv = simple fade-up. .rv-a = same look, done with an animation so it never fights an element's own hover transitions (cards) */
+.js .rv{opacity:0;transform:translateY(26px);transition:opacity .8s var(--ease),transform .9s var(--ease);transition-delay:var(--d,0s)}
+.js .rv.in{opacity:1;transform:none}
+.js .rv-a{opacity:0}
+.js .rv-a.in{opacity:1;animation:rvIn .95s var(--ease) backwards;animation-delay:var(--d,0s)}
+@keyframes rvIn{from{opacity:0;transform:translateY(30px) scale(.985)}}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  .adj .w.out{display:none}
+  .js .rv,.js .rv-a{opacity:1;transform:none}
+}
